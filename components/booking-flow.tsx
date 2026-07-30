@@ -818,11 +818,12 @@ export function BookingFlow({
           </label>
           <fieldset className="grid gap-3">
             <legend className="text-sm font-semibold">
-              Where can I recognize your message?
+              Where should I message you?
             </legend>
             <p className="text-xs leading-5 text-paper/50">
-              Strongly recommended—this helps me connect your booking with our
-              conversation.
+              Strongly recommended—I’ll use this to discuss what you’d like to
+              do before we meet and to communicate in real time on the day, such
+              as when we’re finding each other.
             </p>
 
             <div
