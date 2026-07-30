@@ -366,7 +366,7 @@ export function BookingFlow({
           <AlertDialog.Portal>
             <AlertDialog.Backdrop className="fixed inset-0 z-[100] bg-ink/70 backdrop-blur-sm data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 transition-opacity" />
             <AlertDialog.Viewport className="fixed inset-0 z-[101] flex items-center justify-center overflow-y-auto overscroll-contain p-4 sm:p-8">
-              <AlertDialog.Popup className="relative max-h-[calc(100dvh-2rem)] w-full max-w-lg touch-pan-y overflow-y-auto overscroll-contain rounded-3xl border border-ink/10 bg-paper p-6 text-ink shadow-2xl outline-none [scrollbar-gutter:stable] data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 transition-[transform,opacity] sm:max-h-[calc(100dvh-4rem)] sm:px-10 sm:py-8">
+              <AlertDialog.Popup className="booking-dialog-scrollbar relative max-h-[calc(100dvh-2rem)] w-full max-w-lg touch-pan-y overflow-y-auto overscroll-contain rounded-3xl border border-ink/10 bg-paper p-6 text-ink shadow-2xl outline-none data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 transition-[transform,opacity] sm:max-h-[calc(100dvh-4rem)] sm:px-10 sm:py-8">
                 <AlertDialog.Close
                   type="button"
                   disabled={submitting}
