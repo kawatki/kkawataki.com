@@ -304,11 +304,8 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : ""
   const title = typeof input.title === "string" ? input.title.trim() : ""
   const notes = typeof input.notes === "string" ? input.notes.trim() : ""
-  const noSocial = input.noSocial === true
-  let socialPlatform: BookingRequest["socialPlatform"]
-  if (noSocial) {
-    socialPlatform = "none"
-  } else if (
+  let socialPlatform: Exclude<BookingRequest["socialPlatform"], "none">
+  if (
     input.socialPlatform === "discord" ||
     input.socialPlatform === "instagram" ||
     input.socialPlatform === "line" ||
@@ -317,7 +314,7 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   ) {
     socialPlatform = input.socialPlatform
   } else {
-    throw new Error("Choose a messaging app or use the email-only option.")
+    throw new Error("Choose a messaging app.")
   }
   const rawSocialHandle =
     typeof input.socialHandle === "string" ? input.socialHandle.trim() : ""
@@ -328,16 +325,12 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   const contactValue = usesAtPrefix
     ? rawSocialHandle.replace(/^@+/u, "")
     : rawSocialHandle
-  const socialHandle =
-    socialPlatform === "none" || !contactValue
-      ? ""
-      : usesAtPrefix
-        ? `@${contactValue}`
-        : contactValue
-  const alternateContact =
-    noSocial && typeof input.alternateContact === "string"
-      ? input.alternateContact.trim()
-      : ""
+  const socialHandle = !contactValue
+    ? ""
+    : usesAtPrefix
+      ? `@${contactValue}`
+      : contactValue
+  const alternateContact = ""
   const date = typeof input.date === "string" ? input.date.trim() : ""
   const startTime =
     typeof input.startTime === "string" ? input.startTime.trim() : ""
@@ -385,12 +378,6 @@ export function parseBookingRequest(value: unknown): BookingRequest {
     !/^\+?[0-9 ()-]{7,30}$/u.test(socialHandle)
   ) {
     throw new Error("Enter a valid WhatsApp phone number.")
-  }
-  if (socialPlatform === "none" && rawSocialHandle) {
-    throw new Error("Please clear the social username or choose a platform.")
-  }
-  if (alternateContact.length > 160 || /[\r\n]/u.test(alternateContact)) {
-    throw new Error("Please keep your alternative contact under 160 characters.")
   }
   if (!date || !startTime || !endTime) {
     throw new Error("Choose an available start and end time.")

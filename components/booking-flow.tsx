@@ -292,7 +292,6 @@ export function BookingFlow({
   const [depositTermsAccepted, setDepositTermsAccepted] = useState(false)
   const [socialPlatform, setSocialPlatform] =
     useState<CustomerMessagingPlatform>("instagram")
-  const [noSocial, setNoSocial] = useState(false)
   const messagingField = MESSAGING_FIELDS[socialPlatform]
   const [guidedStep, setGuidedStep] = useState<1 | 2 | 3 | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
@@ -569,8 +568,6 @@ export function BookingFlow({
           endTime: selectedEnd,
           name: form.get("name"),
           notes: form.get("notes"),
-          noSocial,
-          alternateContact: form.get("alternateContact"),
           socialHandle: form.get("socialHandle"),
           socialPlatform,
           date: selectedDate,
@@ -1034,22 +1031,21 @@ export function BookingFlow({
               Where should I message you?
             </legend>
             <p className="text-xs leading-5 text-paper/50">
-              Strongly recommended—I’ll use this to discuss what you’d like to
-              do before we meet and to communicate in real time on the day, such
+              <b>Required</b>—I’ll use this to discuss what you’d like to do
+              before we meet and to communicate in real time on the day, such
               as when we’re finding each other.
             </p>
 
-            <label
-              className={cn(
-                "grid gap-2 text-sm font-semibold transition",
-                noSocial && "opacity-35"
-              )}
-            >
-              Messaging app
+            <label className="grid gap-2 text-sm font-semibold">
+              <span className="flex items-center gap-2">
+                Messaging app
+                <span className="rounded-full bg-[#DCEBE7] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-[#214E43]">
+                  Required
+                </span>
+              </span>
               <span className="relative">
                 <select
                   value={socialPlatform}
-                  disabled={noSocial}
                   onChange={(event) =>
                     setSocialPlatform(
                       event.target.value as CustomerMessagingPlatform
@@ -1074,12 +1070,7 @@ export function BookingFlow({
               </span>
             </label>
 
-            <label
-              className={cn(
-                "grid gap-2 text-sm font-semibold transition",
-                noSocial && "opacity-35"
-              )}
-            >
+            <label className="grid gap-2 text-sm font-semibold">
               {messagingField.label}
               <span className="flex h-12 items-center rounded-xl border border-paper/15 bg-paper/10 px-4 transition-colors focus-within:border-[#76A99B]">
                 {messagingField.prefix && (
@@ -1092,8 +1083,7 @@ export function BookingFlow({
                 )}
                 <input
                   name="socialHandle"
-                  required={!noSocial}
-                  disabled={noSocial}
+                  required
                   minLength={1}
                   maxLength={messagingField.maxLength}
                   pattern={messagingField.pattern}
@@ -1106,19 +1096,6 @@ export function BookingFlow({
                   placeholder={messagingField.placeholder}
                 />
               </span>
-            </label>
-
-            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-paper/15 bg-paper/[0.04] px-3 py-2.5 text-sm">
-              <Checkbox.Root
-                checked={noSocial}
-                onCheckedChange={setNoSocial}
-                className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-paper/30 bg-paper/10 text-white outline-none transition data-[checked]:border-[#286557] data-[checked]:bg-[#286557] focus-visible:ring-2 focus-visible:ring-[#79AA9C]/40"
-              >
-                <Checkbox.Indicator>
-                  <Check className="size-3.5" strokeWidth={3} />
-                </Checkbox.Indicator>
-              </Checkbox.Root>
-              <span>Use email only</span>
             </label>
           </fieldset>
           <label className="grid gap-2 text-sm font-semibold">
