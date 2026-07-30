@@ -156,7 +156,7 @@ function dayAvailability(day: AvailabilityDay, pricing: BookingPricing) {
   if (remainingRatio > 0.66) {
     return {
       className:
-        "border-[#B8D5CD] bg-[#DCEBE7] text-[#214E43] hover:bg-[#D1E4DF]",
+        "border-[#286557] bg-[#286557] text-white hover:bg-[#22584C]",
       label: "Plenty of times",
     }
   }
@@ -169,7 +169,7 @@ function dayAvailability(day: AvailabilityDay, pricing: BookingPricing) {
   }
   return {
     className:
-      "border-[#286557] bg-[#286557] text-white hover:bg-[#22584C]",
+      "border-[#B8D5CD] bg-[#DCEBE7] text-[#214E43] hover:bg-[#D1E4DF]",
     label: "Limited times",
   }
 }
@@ -542,13 +542,13 @@ export function BookingFlow({
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink/45">
               <span className="inline-flex items-center gap-2">
-                <span className="size-3 rounded-sm bg-[#DCEBE7]" /> Plenty
+                <span className="size-3 rounded-sm bg-[#286557]" /> Plenty
               </span>
               <span className="inline-flex items-center gap-2">
                 <span className="size-3 rounded-sm bg-[#79AA9C]" /> Filling up
               </span>
               <span className="inline-flex items-center gap-2">
-                <span className="size-3 rounded-sm bg-[#286557]" /> Limited
+                <span className="size-3 rounded-sm bg-[#DCEBE7]" /> Limited
               </span>
               <span className="inline-flex items-center gap-2">
                 <span className="size-3 rounded-sm bg-ink/[0.08]" /> Unavailable
