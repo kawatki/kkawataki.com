@@ -188,6 +188,34 @@
   .booking-dialog-scrollbar::-webkit-scrollbar-thumb:hover {
     background: color-mix(in srgb, var(--ink) 38%, transparent);
   }
+
+  .booking-guide-pulse {
+    animation: booking-guide-pulse 1.4s ease-out;
+  }
+
+  .booking-guide-pulse-dark {
+    --guide-pulse-color: var(--jade-light);
+  }
+}
+
+@keyframes booking-guide-pulse {
+  0%,
+  100% {
+    outline: 0 solid transparent;
+    outline-offset: 3px;
+  }
+  28% {
+    outline: 4px solid var(--guide-pulse-color, var(--vermilion));
+    outline-offset: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booking-guide-pulse {
+    animation: none;
+    outline: 3px solid var(--guide-pulse-color, var(--vermilion));
+    outline-offset: 4px;
+  }
 }
 
 @media (min-width: 601px) {

@@ -180,6 +180,33 @@ function dayAvailability(day: AvailabilityDay, pricing: BookingPricing) {
   }
 }
 
+function StepLabel({
+  children,
+  inverted = false,
+  step,
+}: {
+  children: React.ReactNode
+  inverted?: boolean
+  step: number
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span
+        aria-hidden="true"
+        className={cn(
+          "flex size-7 shrink-0 items-center justify-center rounded-full border font-display text-base leading-none shadow-sm",
+          inverted
+            ? "border-paper/20 bg-paper text-ink"
+            : "border-ink/10 bg-ink text-paper"
+        )}
+      >
+        {step}
+      </span>
+      <p className={cn("eyebrow", inverted && "text-paper/50")}>{children}</p>
+    </div>
+  )
+}
+
 export function BookingFlow({
   paymentCancelled = false,
 }: {
@@ -206,8 +233,39 @@ export function BookingFlow({
     "instagram"
   )
   const [noSocial, setNoSocial] = useState(false)
+  const [guidedStep, setGuidedStep] = useState<1 | 2 | 3 | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const calendarSectionRef = useRef<HTMLElement>(null)
+  const timeSectionRef = useRef<HTMLDivElement>(null)
+  const guideInitialDoneRef = useRef(false)
+  const guideDateDoneRef = useRef(false)
+  const guideFormDoneRef = useRef(false)
+  const guideHighlightTimerRef = useRef<number | null>(null)
+
+  function guideToStep(
+    step: 1 | 2 | 3,
+    target: React.RefObject<HTMLElement | null>
+  ) {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        target.current?.scrollIntoView({
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+            .matches
+            ? "auto"
+            : "smooth",
+          block: "start",
+        })
+        setGuidedStep(step)
+        if (guideHighlightTimerRef.current !== null) {
+          window.clearTimeout(guideHighlightTimerRef.current)
+        }
+        guideHighlightTimerRef.current = window.setTimeout(() => {
+          setGuidedStep(null)
+          guideHighlightTimerRef.current = null
+        }, 1400)
+      })
+    })
+  }
 
   async function loadAvailability() {
     setLoading(true)
@@ -261,6 +319,17 @@ export function BookingFlow({
               : "smooth",
             block: "start",
           })
+          if (!guideInitialDoneRef.current) {
+            guideInitialDoneRef.current = true
+            setGuidedStep(1)
+            if (guideHighlightTimerRef.current !== null) {
+              window.clearTimeout(guideHighlightTimerRef.current)
+            }
+            guideHighlightTimerRef.current = window.setTimeout(() => {
+              setGuidedStep(null)
+              guideHighlightTimerRef.current = null
+            }, 1400)
+          }
         })
       })
     } catch (loadError) {
@@ -276,7 +345,12 @@ export function BookingFlow({
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void loadAvailability(), 0)
-    return () => window.clearTimeout(timeout)
+    return () => {
+      window.clearTimeout(timeout)
+      if (guideHighlightTimerRef.current !== null) {
+        window.clearTimeout(guideHighlightTimerRef.current)
+      }
+    }
   }, [])
 
   const activeDay = useMemo(
@@ -345,6 +419,10 @@ export function BookingFlow({
   useEffect(() => {
     if (selectedPricing) {
       toast.dismiss("minimum-booking-duration")
+      if (!guideFormDoneRef.current) {
+        guideFormDoneRef.current = true
+        guideToStep(3, formRef)
+      }
     }
   }, [selectedPricing])
 
@@ -473,11 +551,14 @@ export function BookingFlow({
     <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
       <section
         ref={calendarSectionRef}
-        className="scroll-mt-24 rounded-3xl border border-ink/10 bg-card p-5 shadow-xl shadow-black/10 sm:p-7"
+        className={cn(
+          "scroll-mt-24 rounded-3xl border border-ink/10 bg-card p-5 shadow-xl shadow-black/10 sm:p-7",
+          guidedStep === 1 && "booking-guide-pulse"
+        )}
       >
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="eyebrow">1 · Pick a date</p>
+            <StepLabel step={1}>Pick a date</StepLabel>
             <h2 className="mt-2 font-display text-3xl">Available in Tokyo</h2>
           </div>
           <button
@@ -581,6 +662,10 @@ export function BookingFlow({
                             setSelectedDate(day.date)
                             setSelectedStart("")
                             setSelectedEnd("")
+                            if (!guideDateDoneRef.current) {
+                              guideDateDoneRef.current = true
+                              guideToStep(2, timeSectionRef)
+                            }
                           }}
                           className={cn(
                             "aspect-square rounded-lg border text-sm font-semibold transition",
@@ -618,8 +703,14 @@ export function BookingFlow({
             </div>
 
             {activeDay && (
-              <div className="mt-8 border-t border-ink/10 pt-6">
-                <p className="eyebrow">2 · Choose your time range</p>
+              <div
+                ref={timeSectionRef}
+                className={cn(
+                  "scroll-mt-24 mt-8 rounded-2xl border-t border-ink/10 pt-6",
+                  guidedStep === 2 && "booking-guide-pulse"
+                )}
+              >
+                <StepLabel step={2}>Choose your time range</StepLabel>
                 <h3 className="mt-2 font-display text-2xl">
                   {displayDate(activeDay.date, {
                     day: "numeric",
@@ -839,9 +930,14 @@ export function BookingFlow({
       <form
         ref={formRef}
         onSubmit={requestCheckout}
-        className="rounded-3xl bg-ink p-6 text-paper shadow-2xl shadow-ink/15 sm:p-8"
+        className={cn(
+          "scroll-mt-24 rounded-3xl bg-ink p-6 text-paper shadow-2xl shadow-ink/15 sm:p-8",
+          guidedStep === 3 && "booking-guide-pulse booking-guide-pulse-dark"
+        )}
       >
-        <p className="eyebrow text-paper/50">3 · Tell me your plan</p>
+        <StepLabel step={3} inverted>
+          Tell me your plan
+        </StepLabel>
         <h2 className="mt-3 font-display text-4xl">Secure your time.</h2>
         <p className="mt-3 text-sm leading-6 text-paper/60">
           Your slot is confirmed only after Stripe accepts the 25% deposit.
