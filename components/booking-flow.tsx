@@ -196,6 +196,10 @@ export function BookingFlow({
   const [checkoutError, setCheckoutError] = useState("")
   const [confirmationOpen, setConfirmationOpen] = useState(false)
   const [depositTermsAccepted, setDepositTermsAccepted] = useState(false)
+  const [socialPlatform, setSocialPlatform] = useState<"instagram" | "x">(
+    "instagram"
+  )
+  const [noSocial, setNoSocial] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
 
   async function loadAvailability() {
@@ -387,6 +391,10 @@ export function BookingFlow({
           endTime: selectedEnd,
           name: form.get("name"),
           notes: form.get("notes"),
+          noSocial,
+          alternateContact: form.get("alternateContact"),
+          socialHandle: form.get("socialHandle"),
+          socialPlatform,
           date: selectedDate,
           startTime: selectedStart,
           title: form.get("title"),
@@ -793,6 +801,87 @@ export function BookingFlow({
               placeholder="you@example.com"
             />
           </label>
+          <fieldset className="grid gap-3">
+            <legend className="text-sm font-semibold">
+              Where can I recognize your message?
+            </legend>
+            <p className="text-xs leading-5 text-paper/50">
+              Strongly recommended—this helps me connect your booking with our
+              conversation.
+            </p>
+
+            <div
+              className={cn(
+                "grid grid-cols-2 gap-2 transition",
+                noSocial && "opacity-35"
+              )}
+            >
+              {(["instagram", "x"] as const).map((platform) => (
+                <button
+                  key={platform}
+                  type="button"
+                  disabled={noSocial}
+                  aria-pressed={socialPlatform === platform}
+                  onClick={() => setSocialPlatform(platform)}
+                  className="h-11 rounded-xl border border-paper/15 bg-paper/5 text-sm font-semibold transition hover:bg-paper/10 disabled:cursor-not-allowed aria-pressed:border-jade-light aria-pressed:bg-jade-light aria-pressed:text-ink"
+                >
+                  {platform === "instagram" ? "Instagram" : "X"}
+                </button>
+              ))}
+            </div>
+
+            <label
+              className={cn(
+                "grid gap-2 text-sm font-semibold transition",
+                noSocial && "opacity-35"
+              )}
+            >
+              Username or profile link
+              <input
+                name="socialHandle"
+                required={!noSocial}
+                disabled={noSocial}
+                minLength={2}
+                maxLength={160}
+                autoComplete="off"
+                className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light disabled:cursor-not-allowed"
+                placeholder={
+                  socialPlatform === "instagram"
+                    ? "@username or instagram.com/username"
+                    : "@username or x.com/username"
+                }
+              />
+            </label>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-paper/15 bg-paper/[0.04] p-4 text-sm leading-6">
+              <Checkbox.Root
+                checked={noSocial}
+                onCheckedChange={setNoSocial}
+                className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-paper/30 bg-paper/10 text-ink outline-none transition data-[checked]:border-jade-light data-[checked]:bg-jade-light focus-visible:ring-2 focus-visible:ring-jade-light/40"
+              >
+                <Checkbox.Indicator>
+                  <Check className="size-3.5" strokeWidth={3} />
+                </Checkbox.Indicator>
+              </Checkbox.Root>
+              <span>I don’t use Instagram or X.</span>
+            </label>
+
+            {noSocial && (
+              <label className="grid gap-2 text-sm font-semibold">
+                Another way to message you{" "}
+                <span className="font-normal text-jade-light">
+                  Strongly recommended
+                </span>
+                <input
+                  name="alternateContact"
+                  maxLength={160}
+                  autoComplete="off"
+                  className="h-12 rounded-xl border border-jade-light/35 bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light"
+                  placeholder="LINE ID, WhatsApp, Discord…"
+                />
+              </label>
+            )}
+          </fieldset>
           <label className="grid gap-2 text-sm font-semibold">
             What would you like to do?
             <input

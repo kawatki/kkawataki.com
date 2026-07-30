@@ -53,6 +53,7 @@ async function fulfillCheckout(session: Stripe.Checkout.Session) {
   }
 
   const result = await confirmPaidBooking({
+    alternateContact: metadata.alternate_contact ?? "",
     balanceDueJpy: pricing.balanceDueJpy,
     depositAmountJpy: pricing.depositAmountJpy,
     depositPercent: pricing.depositPercent,
@@ -64,6 +65,12 @@ async function fulfillCheckout(session: Stripe.Checkout.Session) {
     rateJpyPer30Minutes: pricing.rateJpyPer30Minutes,
     sessionId: session.id,
     serviceTotalJpy: pricing.serviceTotalJpy,
+    socialHandle: metadata.social_handle ?? "",
+    socialPlatform:
+      metadata.social_platform === "instagram" ||
+      metadata.social_platform === "x"
+        ? metadata.social_platform
+        : "none",
     title: metadata.booking_title,
   })
 

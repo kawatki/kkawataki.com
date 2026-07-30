@@ -216,6 +216,9 @@ function holdBody(
         holdToken,
         requestNotes: request.notes,
         requestTitle: request.title,
+        alternateContact: request.alternateContact,
+        socialHandle: request.socialHandle,
+        socialPlatform: request.socialPlatform,
         stripeSessionId,
       },
     },
@@ -411,6 +414,7 @@ export async function expireHold(eventId: string, holdToken: string) {
 }
 
 export async function confirmPaidBooking(input: {
+  alternateContact: string
   balanceDueJpy: number
   depositAmountJpy: number
   depositPercent: number
@@ -422,6 +426,8 @@ export async function confirmPaidBooking(input: {
   rateJpyPer30Minutes: number
   sessionId: string
   serviceTotalJpy: number
+  socialHandle: string
+  socialPlatform: "instagram" | "none" | "x"
   title: string
 }) {
   const event = await getEvent(input.eventId)
@@ -477,6 +483,17 @@ export async function confirmPaidBooking(input: {
   const inviteCustomer = process.env.GOOGLE_INVITE_CUSTOMERS === "true"
   const yen = (amount: number) => `¥${amount.toLocaleString("en-US")}`
   const halfHours = input.durationHours * 2
+  const contactLines =
+    input.socialPlatform === "instagram"
+      ? [`Instagram: ${input.socialHandle}`]
+      : input.socialPlatform === "x"
+        ? [`X.com: ${input.socialHandle}`]
+        : [
+            "Instagram / X: Not provided",
+            input.alternateContact
+              ? `Other contact: ${input.alternateContact}`
+              : "Other contact: Email only",
+          ]
   const description = [
     properties.bookingReference
       ? [`Booking reference: ${properties.bookingReference}`]
@@ -487,7 +504,7 @@ export async function confirmPaidBooking(input: {
       `${input.depositPercent}% deposit paid: − ${yen(input.depositAmountJpy)}`,
       `Pay in person: ${yen(input.balanceDueJpy)}`,
     ],
-    [`Customer: ${input.name}`, `Email: ${input.email}`],
+    [`Customer: ${input.name}`, `Email: ${input.email}`, ...contactLines],
     [
       `Request: ${input.title}`,
       ...(input.notes ? [`Notes: ${input.notes}`] : []),
@@ -514,6 +531,9 @@ export async function confirmPaidBooking(input: {
             customerName: input.name,
             requestNotes: input.notes,
             requestTitle: input.title,
+            alternateContact: input.alternateContact,
+            socialHandle: input.socialHandle,
+            socialPlatform: input.socialPlatform,
             stripeSessionId: input.sessionId,
           },
         },

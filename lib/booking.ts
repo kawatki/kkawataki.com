@@ -22,12 +22,15 @@ export type BookingSlot = {
 }
 
 export type BookingRequest = {
+  alternateContact: string
   date: string
   depositTermsAccepted: boolean
   email: string
   endTime: string
   name: string
   notes: string
+  socialHandle: string
+  socialPlatform: "instagram" | "none" | "x"
   startTime: string
   title: string
 }
@@ -293,6 +296,24 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : ""
   const title = typeof input.title === "string" ? input.title.trim() : ""
   const notes = typeof input.notes === "string" ? input.notes.trim() : ""
+  const noSocial = input.noSocial === true
+  let socialPlatform: BookingRequest["socialPlatform"]
+  if (noSocial) {
+    socialPlatform = "none"
+  } else if (
+    input.socialPlatform === "instagram" ||
+    input.socialPlatform === "x"
+  ) {
+    socialPlatform = input.socialPlatform
+  } else {
+    throw new Error("Choose Instagram, X, or the no-social option.")
+  }
+  const socialHandle =
+    typeof input.socialHandle === "string" ? input.socialHandle.trim() : ""
+  const alternateContact =
+    noSocial && typeof input.alternateContact === "string"
+      ? input.alternateContact.trim()
+      : ""
   const date = typeof input.date === "string" ? input.date.trim() : ""
   const startTime =
     typeof input.startTime === "string" ? input.startTime.trim() : ""
@@ -311,6 +332,20 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   if (notes.length > 450) {
     throw new Error("Please keep your note under 450 characters.")
   }
+  if (
+    socialPlatform !== "none" &&
+    (socialHandle.length < 2 ||
+      socialHandle.length > 160 ||
+      /[\r\n]/u.test(socialHandle))
+  ) {
+    throw new Error("Enter your Instagram or X username.")
+  }
+  if (socialPlatform === "none" && socialHandle) {
+    throw new Error("Please clear the social username or choose a platform.")
+  }
+  if (alternateContact.length > 160 || /[\r\n]/u.test(alternateContact)) {
+    throw new Error("Please keep your alternative contact under 160 characters.")
+  }
   if (!date || !startTime || !endTime) {
     throw new Error("Choose an available start and end time.")
   }
@@ -319,12 +354,15 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   }
 
   return {
+    alternateContact,
     date,
     depositTermsAccepted,
     email,
     endTime,
     name,
     notes,
+    socialHandle,
+    socialPlatform,
     startTime,
     title,
   }
