@@ -1,5 +1,6 @@
 import {
   bookingDayHours,
+  bookingTransportBufferMinutes,
   generateCandidateSlots,
   getBookingPricing,
 } from "@/lib/booking"
@@ -38,6 +39,7 @@ export async function GET() {
         dayHours: bookingDayHours(),
         days,
         pricing: getBookingPricing(),
+        transportBufferMinutes: bookingTransportBufferMinutes(),
       },
       { headers: { "cache-control": "no-store, max-age=0" } }
     )

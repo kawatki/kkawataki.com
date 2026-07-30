@@ -8,6 +8,7 @@ export const MINIMUM_NOTICE_HOURS = 24
 
 const DEFAULT_DAY_START = "09:00"
 const DEFAULT_DAY_END = "23:00"
+const DEFAULT_TRANSPORT_BUFFER_MINUTES = 60
 const DEFAULT_RATE_JPY_PER_30_MINUTES = 1_000
 const DEFAULT_BOOKING_MONTHS_AHEAD = 6
 
@@ -130,6 +131,17 @@ export function bookingDayHours() {
   return timeToMinutes(end) > timeToMinutes(start)
     ? { end, start }
     : { end: DEFAULT_DAY_END, start: DEFAULT_DAY_START }
+}
+
+export function bookingTransportBufferMinutes() {
+  const configuredBuffer = Number(
+    process.env.BOOKING_TRANSPORT_BUFFER_MINUTES
+  )
+  return Number.isInteger(configuredBuffer) &&
+    configuredBuffer >= 0 &&
+    configuredBuffer <= 4 * 60
+    ? configuredBuffer
+    : DEFAULT_TRANSPORT_BUFFER_MINUTES
 }
 
 function minutesToTime(minutes: number) {

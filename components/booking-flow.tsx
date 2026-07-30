@@ -34,6 +34,7 @@ type AvailabilityResponse = {
   days?: AvailabilityDay[]
   error?: string
   pricing?: BookingPricing
+  transportBufferMinutes?: number
 }
 
 function yen(amount: number) {
@@ -138,6 +139,41 @@ function calendarDates(month: string) {
   return dates
 }
 
+function dayAvailability(day: AvailabilityDay, pricing: BookingPricing) {
+  const minimumSegments =
+    pricing.minimumDurationMinutes / pricing.bookingIncrementMinutes
+  const maximumStarts = Math.max(day.totalSegments - minimumSegments + 1, 0)
+  const availableStarts = startOptions(day, pricing).length
+
+  if (!availableStarts || !maximumStarts) {
+    return {
+      className: "border-ink/5 bg-ink/[0.08] text-ink/30",
+      label: "Unavailable",
+    }
+  }
+
+  const remainingRatio = availableStarts / maximumStarts
+  if (remainingRatio > 0.66) {
+    return {
+      className:
+        "border-[#B8D5CD] bg-[#DCEBE7] text-[#214E43] hover:bg-[#D1E4DF]",
+      label: "Plenty of times",
+    }
+  }
+  if (remainingRatio > 0.33) {
+    return {
+      className:
+        "border-[#76A99B] bg-[#79AA9C] text-white hover:bg-[#699C8E]",
+      label: "Filling up",
+    }
+  }
+  return {
+    className:
+      "border-[#286557] bg-[#286557] text-white hover:bg-[#22584C]",
+    label: "Limited times",
+  }
+}
+
 export function BookingFlow({
   paymentCancelled = false,
 }: {
@@ -153,6 +189,7 @@ export function BookingFlow({
     start: "09:00",
   })
   const [pricing, setPricing] = useState<BookingPricing | null>(null)
+  const [transportBufferMinutes, setTransportBufferMinutes] = useState(60)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
@@ -179,6 +216,7 @@ export function BookingFlow({
       setDays(result.days)
       setDayHours(result.dayHours)
       setPricing(result.pricing)
+      setTransportBufferMinutes(result.transportBufferMinutes ?? 60)
       setSelectedStart("")
       setSelectedEnd("")
       const firstAvailable = result.days.find(
@@ -467,6 +505,13 @@ export function BookingFlow({
                   )
                 }
 
+                const availability = pricing
+                  ? dayAvailability(day, pricing)
+                  : {
+                      className:
+                        "border-ink/5 bg-ink/[0.08] text-ink/30",
+                      label: "Unavailable",
+                    }
                 const available =
                   pricing ? startOptions(day, pricing).length : 0
                 const selected = selectedDate === day.date
@@ -482,17 +527,11 @@ export function BookingFlow({
                     }}
                     title={`${displayDate(day.date, {
                       dateStyle: "long",
-                    })}: ${
-                      available
-                        ? "available"
-                        : "no four-hour range available"
-                    }`}
+                    })}: ${availability.label.toLowerCase()}`}
                     className={cn(
                       "aspect-square rounded-lg border text-sm font-semibold transition",
-                      available === 0 &&
-                        "cursor-not-allowed border-ink/5 bg-ink/[0.08] text-ink/30",
-                      available > 0 &&
-                        "border-[#286557] bg-[#286557] text-white hover:bg-[#22584c]",
+                      availability.className,
+                      available === 0 && "cursor-not-allowed",
                       selected && "ring-2 ring-vermilion ring-offset-2"
                     )}
                   >
@@ -503,7 +542,13 @@ export function BookingFlow({
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink/45">
               <span className="inline-flex items-center gap-2">
-                <span className="size-3 rounded-sm bg-[#286557]" /> Available
+                <span className="size-3 rounded-sm bg-[#DCEBE7]" /> Plenty
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="size-3 rounded-sm bg-[#79AA9C]" /> Filling up
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="size-3 rounded-sm bg-[#286557]" /> Limited
               </span>
               <span className="inline-flex items-center gap-2">
                 <span className="size-3 rounded-sm bg-ink/[0.08]" /> Unavailable
@@ -523,7 +568,9 @@ export function BookingFlow({
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-ink/55">
                   Tap an available start, then tap your end time. Bookings are
-                  at least four hours, in 30-minute increments.
+                  at least four hours, in 30-minute increments. A{" "}
+                  {transportBufferMinutes / 60}-hour transportation buffer is
+                  automatically kept after every booking.
                 </p>
 
                 <div className="mt-5 rounded-2xl border border-ink/10 bg-cream/60 p-4 sm:p-5">

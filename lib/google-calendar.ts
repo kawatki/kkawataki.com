@@ -1,7 +1,10 @@
 import "server-only"
 
 import type { BookingRequest, BookingSlot } from "@/lib/booking"
-import { BOOKING_TIME_ZONE } from "@/lib/booking"
+import {
+  bookingTransportBufferMinutes,
+  BOOKING_TIME_ZONE,
+} from "@/lib/booking"
 import { requiredEnv } from "@/lib/server-config"
 
 type GoogleEvent = {
@@ -182,6 +185,12 @@ function eventTime(value?: { date?: string; dateTime?: string }) {
   return Number.NaN
 }
 
+function shiftIsoTime(value: string, minutes: number) {
+  return new Date(
+    new Date(value).getTime() + minutes * 60 * 1_000
+  ).toISOString()
+}
+
 function holdBody(
   slot: BookingSlot,
   request: BookingRequest,
@@ -220,6 +229,7 @@ export async function listAvailableSlots(candidates: BookingSlot[]) {
 
   const first = candidates[0]
   const last = candidates.at(-1) ?? first
+  const bufferMinutes = bookingTransportBufferMinutes()
   const events: GoogleEvent[] = []
   let pageToken: string | undefined
 
@@ -231,8 +241,8 @@ export async function listAvailableSlots(candidates: BookingSlot[]) {
         pageToken: pageToken ?? "",
         showDeleted: "false",
         singleEvents: "true",
-        timeMax: last.end,
-        timeMin: first.start,
+        timeMax: shiftIsoTime(last.end, bufferMinutes),
+        timeMin: shiftIsoTime(first.start, -bufferMinutes),
         timeZone: BOOKING_TIME_ZONE,
       })
     )
@@ -259,7 +269,12 @@ export async function listAvailableSlots(candidates: BookingSlot[]) {
   return candidates.filter((slot) => {
     const start = new Date(slot.start).getTime()
     const end = new Date(slot.end).getTime()
-    return !busy.some((event) => start < event.end && end > event.start)
+    const bufferMilliseconds = bufferMinutes * 60 * 1_000
+    return !busy.some(
+      (event) =>
+        start < event.end + bufferMilliseconds &&
+        end + bufferMilliseconds > event.start
+    )
   })
 }
 
@@ -415,8 +430,8 @@ export async function confirmPaidBooking(input: {
       orderBy: "startTime",
       showDeleted: "false",
       singleEvents: "true",
-      timeMax: eventEnd,
-      timeMin: eventStart,
+      timeMax: shiftIsoTime(eventEnd, bookingTransportBufferMinutes()),
+      timeMin: shiftIsoTime(eventStart, -bookingTransportBufferMinutes()),
       timeZone: BOOKING_TIME_ZONE,
     })
   )
