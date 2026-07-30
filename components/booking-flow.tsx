@@ -1004,14 +1004,14 @@ export function BookingFlow({
 
         <div className="mt-7 grid gap-5">
           <label className="grid gap-2 text-sm font-semibold">
-            Your name
+            Name (Nickname)
             <input
               name="name"
               required
               maxLength={80}
               autoComplete="name"
               className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light"
-              placeholder="Keisuke Kawataki"
+              placeholder="Keisuke or Taki"
             />
           </label>
           <label className="grid gap-2 text-sm font-semibold">
