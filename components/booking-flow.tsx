@@ -836,21 +836,27 @@ export function BookingFlow({
                 noSocial && "opacity-35"
               )}
             >
-              Username or profile link
-              <input
-                name="socialHandle"
-                required={!noSocial}
-                disabled={noSocial}
-                minLength={2}
-                maxLength={160}
-                autoComplete="off"
-                className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light disabled:cursor-not-allowed"
-                placeholder={
-                  socialPlatform === "instagram"
-                    ? "@username or instagram.com/username"
-                    : "@username or x.com/username"
-                }
-              />
+              Username
+              <span className="flex h-12 items-center rounded-xl border border-paper/15 bg-paper/10 px-4 transition-colors focus-within:border-jade-light">
+                <span aria-hidden="true" className="font-normal text-paper/55">
+                  @
+                </span>
+                <input
+                  name="socialHandle"
+                  required={!noSocial}
+                  disabled={noSocial}
+                  minLength={1}
+                  maxLength={socialPlatform === "instagram" ? 31 : 16}
+                  pattern={
+                    socialPlatform === "instagram"
+                      ? "@?[A-Za-z0-9._]{1,30}"
+                      : "@?[A-Za-z0-9_]{1,15}"
+                  }
+                  autoComplete="off"
+                  className="min-w-0 flex-1 bg-transparent pl-0.5 font-normal text-paper outline-none placeholder:text-paper/30 disabled:cursor-not-allowed"
+                  placeholder="username"
+                />
+              </span>
             </label>
 
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-paper/15 bg-paper/[0.04] p-4 text-sm leading-6">

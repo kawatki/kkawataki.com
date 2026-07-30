@@ -308,8 +308,11 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   } else {
     throw new Error("Choose Instagram, X, or the no-social option.")
   }
-  const socialHandle =
+  const rawSocialHandle =
     typeof input.socialHandle === "string" ? input.socialHandle.trim() : ""
+  const username = rawSocialHandle.replace(/^@+/u, "")
+  const socialHandle =
+    socialPlatform === "none" || !username ? "" : `@${username}`
   const alternateContact =
     noSocial && typeof input.alternateContact === "string"
       ? input.alternateContact.trim()
@@ -333,14 +336,18 @@ export function parseBookingRequest(value: unknown): BookingRequest {
     throw new Error("Please keep your note under 450 characters.")
   }
   if (
-    socialPlatform !== "none" &&
-    (socialHandle.length < 2 ||
-      socialHandle.length > 160 ||
-      /[\r\n]/u.test(socialHandle))
+    socialPlatform === "instagram" &&
+    !/^@[A-Za-z0-9._]{1,30}$/u.test(socialHandle)
   ) {
-    throw new Error("Enter your Instagram or X username.")
+    throw new Error("Enter a valid Instagram username.")
   }
-  if (socialPlatform === "none" && socialHandle) {
+  if (
+    socialPlatform === "x" &&
+    !/^@[A-Za-z0-9_]{1,15}$/u.test(socialHandle)
+  ) {
+    throw new Error("Enter a valid X username.")
+  }
+  if (socialPlatform === "none" && rawSocialHandle) {
     throw new Error("Please clear the social username or choose a platform.")
   }
   if (alternateContact.length > 160 || /[\r\n]/u.test(alternateContact)) {
