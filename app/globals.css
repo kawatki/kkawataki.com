@@ -156,6 +156,26 @@
   }
 }
 
+@media (min-width: 601px) {
+  [data-sonner-toaster].toaster {
+    --width: 28rem !important;
+  }
+
+  [data-sonner-toaster].toaster [data-sonner-toast][data-styled="true"] {
+    gap: 0.75rem;
+    padding: 1.25rem;
+    font-size: 0.9375rem;
+  }
+
+  [data-sonner-toaster].toaster [data-title] {
+    font-size: 1rem;
+  }
+
+  [data-sonner-toaster].toaster [data-description] {
+    font-size: 0.875rem;
+  }
+}
+
 ::selection {
   background: var(--vermilion);
   color: white;

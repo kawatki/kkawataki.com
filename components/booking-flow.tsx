@@ -342,6 +342,12 @@ export function BookingFlow({
     }
   }, [pricing, selectedEnd, selectedStart])
 
+  useEffect(() => {
+    if (selectedPricing) {
+      toast.dismiss("minimum-booking-duration")
+    }
+  }, [selectedPricing])
+
   function navigateMonth(direction: -1 | 1) {
     const nextMonth = months[visibleMonthIndex + direction]
     if (!nextMonth) return
