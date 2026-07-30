@@ -3,6 +3,7 @@ import {
   DEPOSIT_AMOUNT_JPY,
   DEPOSIT_TERMS_VERSION,
   findCandidateSlot,
+  getBookingPricing,
   parseBookingRequest,
 } from "@/lib/booking"
 import {
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
 
   try {
     const booking = parseBookingRequest(await request.json())
+    const pricing = getBookingPricing()
     const slot = findCandidateSlot(booking.slotId)
     if (!slot) {
       return Response.json(
@@ -56,8 +58,7 @@ export async function POST(request: Request) {
       customer_email: booking.email,
       custom_text: {
         submit: {
-          message:
-            "The ¥2,000 deposit is non-refundable if you cancel or do not attend. It is deducted from the final amount and refunded if the host cancels.",
+          message: `Service rate: ¥${pricing.rateJpyPer30Minutes.toLocaleString("en-US")} per 30 minutes (¥${pricing.serviceTotalJpy.toLocaleString("en-US")} for ${pricing.durationHours} hours). The ¥${DEPOSIT_AMOUNT_JPY.toLocaleString("en-US")} deposit is non-refundable if you cancel or do not attend, and is deducted from the final amount. You also cover transportation and any food or drinks during our time together.`,
         },
       },
       expires_at: expiresAt,
@@ -79,8 +80,11 @@ export async function POST(request: Request) {
         booking_notes: booking.notes,
         booking_title: booking.title,
         customer_name: booking.name,
+        balance_due_jpy: String(pricing.balanceDueJpy),
         deposit_terms_accepted: "true",
         deposit_terms_version: DEPOSIT_TERMS_VERSION,
+        rate_jpy_per_30_minutes: String(pricing.rateJpyPer30Minutes),
+        service_total_jpy: String(pricing.serviceTotalJpy),
         slot_end: slot.end,
         slot_start: slot.start,
       },

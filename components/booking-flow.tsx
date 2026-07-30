@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react"
 
-import type { BookingSlot } from "@/lib/booking"
+import type { BookingPricing, BookingSlot } from "@/lib/booking"
 import { cn } from "@/lib/utils"
 
 type AvailabilityDay = {
@@ -26,6 +26,11 @@ type AvailabilityDay = {
 type AvailabilityResponse = {
   days?: AvailabilityDay[]
   error?: string
+  pricing?: BookingPricing
+}
+
+function yen(amount: number) {
+  return `¥${amount.toLocaleString("en-US")}`
 }
 
 function displayDate(date: string, options: Intl.DateTimeFormatOptions) {
@@ -43,6 +48,7 @@ export function BookingFlow({
   const [days, setDays] = useState<AvailabilityDay[]>([])
   const [selectedDate, setSelectedDate] = useState("")
   const [selectedSlot, setSelectedSlot] = useState("")
+  const [pricing, setPricing] = useState<BookingPricing | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
@@ -56,11 +62,12 @@ export function BookingFlow({
     try {
       const response = await fetch("/api/availability/", { cache: "no-store" })
       const result = (await response.json()) as AvailabilityResponse
-      if (!response.ok || !result.days) {
+      if (!response.ok || !result.days || !result.pricing) {
         throw new Error(result.error ?? "Available times could not be loaded.")
       }
 
       setDays(result.days)
+      setPricing(result.pricing)
       const firstAvailable = result.days.find((day) => day.slots.length)
       setSelectedDate((current) =>
         result.days?.some((day) => day.date === current && day.slots.length)
@@ -95,7 +102,7 @@ export function BookingFlow({
   }
 
   async function startCheckout() {
-    if (!depositTermsAccepted || !formRef.current) return
+    if (!depositTermsAccepted || !formRef.current || !pricing) return
 
     setError("")
     setSubmitting(true)
@@ -266,8 +273,9 @@ export function BookingFlow({
         <p className="eyebrow text-paper/50">3 · Tell me your plan</p>
         <h2 className="mt-3 font-display text-4xl">Secure your time.</h2>
         <p className="mt-3 text-sm leading-6 text-paper/60">
-          Your slot is confirmed only after Stripe accepts the ¥2,000 deposit.
-          The deposit is deducted from the amount paid in person.
+          Your slot is confirmed only after Stripe accepts the{" "}
+          {yen(pricing?.depositAmountJpy ?? 2_000)} deposit. The deposit is
+          deducted from the amount paid in person.
         </p>
 
         <div className="mt-7 grid gap-5">
@@ -375,18 +383,56 @@ export function BookingFlow({
                   Before you pay
                 </AlertDialog.Title>
                 <AlertDialog.Description className="mt-4 text-sm leading-6 text-ink/65">
-                  Please review and accept the deposit policy before continuing
-                  to Stripe.
+                  Here is a concrete example of what you will pay. Please check
+                  it before continuing to Stripe.
                 </AlertDialog.Description>
 
                 <div className="mt-6 rounded-2xl border border-vermilion/20 bg-vermilion/[0.06] p-5">
-                  <p className="font-semibold">The ¥2,000 deposit is non-refundable.</p>
+                  <p className="font-semibold">
+                    The {yen(pricing?.depositAmountJpy ?? 2_000)} deposit is
+                    non-refundable.
+                  </p>
                   <p className="mt-2 text-sm leading-6 text-ink/65">
                     It will not be refunded if you cancel or do not attend. The
                     deposit is deducted from the final amount paid in person. If
                     I cancel the booking, your deposit will be refunded.
                   </p>
                 </div>
+
+                {pricing && (
+                  <div className="mt-5 rounded-2xl border border-ink/10 bg-white p-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink/45">
+                      Example · {pricing.durationHours}-hour booking
+                    </p>
+                    <dl className="mt-4 grid gap-3 text-sm">
+                      <div className="flex items-center justify-between gap-4">
+                        <dt className="text-ink/60">
+                          {yen(pricing.rateJpyPer30Minutes)} ×{" "}
+                          {pricing.durationHours * 2} half-hours
+                        </dt>
+                        <dd className="font-semibold">
+                          {yen(pricing.serviceTotalJpy)}
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <dt className="text-ink/60">Deposit paid now</dt>
+                        <dd className="font-semibold">
+                          − {yen(pricing.depositAmountJpy)}
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-4 border-t border-ink/10 pt-3">
+                        <dt className="font-semibold">Pay in person</dt>
+                        <dd className="font-semibold text-vermilion">
+                          {yen(pricing.balanceDueJpy)}
+                        </dd>
+                      </div>
+                    </dl>
+                    <p className="mt-4 border-t border-ink/10 pt-4 text-sm leading-6 text-ink/60">
+                      You also cover transportation costs and any food or drinks
+                      during our time together.
+                    </p>
+                  </div>
+                )}
 
                 <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-4 text-sm leading-6 transition hover:bg-white">
                   <Checkbox.Root

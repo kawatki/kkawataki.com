@@ -7,6 +7,7 @@ export const BOOKING_WINDOW_DAYS = 56
 export const MINIMUM_NOTICE_HOURS = 24
 
 const DEFAULT_SLOT_STARTS = ["09:00", "14:00", "19:00"]
+const DEFAULT_RATE_JPY_PER_30_MINUTES = 1_000
 
 export type BookingSlot = {
   date: string
@@ -23,6 +24,31 @@ export type BookingRequest = {
   notes: string
   slotId: string
   title: string
+}
+
+export type BookingPricing = {
+  balanceDueJpy: number
+  depositAmountJpy: number
+  durationHours: number
+  rateJpyPer30Minutes: number
+  serviceTotalJpy: number
+}
+
+export function getBookingPricing(): BookingPricing {
+  const configuredRate = Number(process.env.BOOKING_RATE_JPY_PER_30_MINUTES)
+  const rateJpyPer30Minutes =
+    Number.isInteger(configuredRate) && configuredRate > 0
+      ? configuredRate
+      : DEFAULT_RATE_JPY_PER_30_MINUTES
+  const serviceTotalJpy = rateJpyPer30Minutes * BOOKING_DURATION_HOURS * 2
+
+  return {
+    balanceDueJpy: Math.max(serviceTotalJpy - DEPOSIT_AMOUNT_JPY, 0),
+    depositAmountJpy: DEPOSIT_AMOUNT_JPY,
+    durationHours: BOOKING_DURATION_HOURS,
+    rateJpyPer30Minutes,
+    serviceTotalJpy,
+  }
 }
 
 function datePartsInTokyo(date: Date) {
