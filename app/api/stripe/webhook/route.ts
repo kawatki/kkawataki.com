@@ -53,11 +53,17 @@ async function fulfillCheckout(session: Stripe.Checkout.Session) {
   }
 
   const result = await confirmPaidBooking({
+    balanceDueJpy: pricing.balanceDueJpy,
+    depositAmountJpy: pricing.depositAmountJpy,
+    depositPercent: pricing.depositPercent,
+    durationHours: pricing.durationHours,
     email,
     eventId,
     name: metadata.customer_name,
     notes: metadata.booking_notes ?? "",
+    rateJpyPer30Minutes: pricing.rateJpyPer30Minutes,
     sessionId: session.id,
+    serviceTotalJpy: pricing.serviceTotalJpy,
     title: metadata.booking_title,
   })
 

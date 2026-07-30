@@ -411,11 +411,17 @@ export async function expireHold(eventId: string, holdToken: string) {
 }
 
 export async function confirmPaidBooking(input: {
+  balanceDueJpy: number
+  depositAmountJpy: number
+  depositPercent: number
+  durationHours: number
   email: string
   eventId: string
   name: string
   notes: string
+  rateJpyPer30Minutes: number
   sessionId: string
+  serviceTotalJpy: number
   title: string
 }) {
   const event = await getEvent(input.eventId)
@@ -469,21 +475,28 @@ export async function confirmPaidBooking(input: {
   }
 
   const inviteCustomer = process.env.GOOGLE_INVITE_CUSTOMERS === "true"
+  const yen = (amount: number) => `¥${amount.toLocaleString("en-US")}`
+  const halfHours = input.durationHours * 2
   const description = [
     properties.bookingReference
-      ? `Booking reference: ${properties.bookingReference}`
-      : "",
-    "",
-    `Customer: ${input.name}`,
-    `Email: ${input.email}`,
-    "",
-    `Request: ${input.title}`,
-    input.notes ? `Notes: ${input.notes}` : "",
-    "",
-    `Stripe Checkout: ${input.sessionId}`,
+      ? [`Booking reference: ${properties.bookingReference}`]
+      : [],
+    [
+      `YOUR BOOKING · ${input.durationHours} HOURS`,
+      `${yen(input.rateJpyPer30Minutes)} × ${halfHours} half-hours: ${yen(input.serviceTotalJpy)}`,
+      `${input.depositPercent}% deposit paid: − ${yen(input.depositAmountJpy)}`,
+      `Pay in person: ${yen(input.balanceDueJpy)}`,
+    ],
+    [`Customer: ${input.name}`, `Email: ${input.email}`],
+    [
+      `Request: ${input.title}`,
+      ...(input.notes ? [`Notes: ${input.notes}`] : []),
+    ],
+    [`Stripe Checkout: ${input.sessionId}`],
   ]
-    .filter(Boolean)
-    .join("\n")
+    .filter((section) => section.length > 0)
+    .map((section) => section.join("\n"))
+    .join("\n\n")
 
   await googleRequest<GoogleEvent>(
     calendarUrl(`/${encodeURIComponent(input.eventId)}`, {
