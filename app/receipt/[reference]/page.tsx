@@ -1,10 +1,12 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { headers } from "next/headers"
 import { CalendarCheck, CircleAlert } from "lucide-react"
 
 import { BookingReceipt } from "@/components/booking-receipt"
 import { buttonVariants } from "@/components/ui/button"
 import { getPublicBookingReceipt } from "@/lib/booking-receipt"
+import { checkRateLimit } from "@/lib/rate-limit"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = {
@@ -18,18 +20,39 @@ export default async function ReceiptPage({
   params: Promise<{ reference: string }>
 }) {
   const { reference } = await params
+  const rateLimit = await checkRateLimit(await headers(), {
+    bucket: "receipt-page",
+    limit: 30,
+    windowSeconds: 5 * 60,
+  })
   let receipt = null
 
-  try {
-    receipt = await getPublicBookingReceipt(reference)
-  } catch (error) {
-    console.error("Receipt page lookup failed", error)
+  if (rateLimit.allowed) {
+    try {
+      receipt = await getPublicBookingReceipt(reference)
+    } catch (error) {
+      console.error("Receipt page lookup failed", error)
+    }
   }
 
   return (
     <section className="page-shell flex min-h-[70svh] items-center justify-center py-16">
       <div className="w-full max-w-3xl rounded-3xl border border-ink/10 bg-card px-6 py-14 shadow-xl shadow-black/10 sm:px-12 sm:py-20">
-        {receipt ? (
+        {!rateLimit.allowed ? (
+          <div className="text-center">
+            <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-vermilion/10 text-vermilion">
+              <CircleAlert className="size-8" />
+            </span>
+            <p className="eyebrow mt-7">Too many checks</p>
+            <h1 className="mt-4 font-display text-5xl sm:text-6xl">
+              Please wait a moment.
+            </h1>
+            <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-ink/65">
+              This receipt has been checked several times recently. Try again
+              in a few minutes.
+            </p>
+          </div>
+        ) : receipt ? (
           <>
             <div className="text-center">
               <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-jade text-white">

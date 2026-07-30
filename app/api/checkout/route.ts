@@ -13,6 +13,10 @@ import {
   SlotUnavailableError,
 } from "@/lib/google-calendar"
 import { ConfigurationError } from "@/lib/server-config"
+import {
+  checkRateLimit,
+  rateLimitedResponse,
+} from "@/lib/rate-limit"
 import { getStripe } from "@/lib/stripe"
 
 function requestIsSameOrigin(request: Request) {
@@ -24,6 +28,15 @@ function requestIsSameOrigin(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const rateLimit = await checkRateLimit(request.headers, {
+    bucket: "checkout",
+    limit: 8,
+    windowSeconds: 10 * 60,
+  })
+  if (!rateLimit.allowed) {
+    return rateLimitedResponse(rateLimit)
+  }
+
   if (!requestIsSameOrigin(request)) {
     return Response.json({ error: "Invalid booking request." }, { status: 403 })
   }

@@ -3,6 +3,10 @@ import {
   getBookingPricing,
 } from "@/lib/booking"
 import { getBookingState } from "@/lib/google-calendar"
+import {
+  checkRateLimit,
+  rateLimitedResponse,
+} from "@/lib/rate-limit"
 import { getStripe } from "@/lib/stripe"
 
 function isMissingStripeSession(error: unknown) {
@@ -15,6 +19,15 @@ function isMissingStripeSession(error: unknown) {
 }
 
 export async function GET(request: Request) {
+  const rateLimit = await checkRateLimit(request.headers, {
+    bucket: "booking-status",
+    limit: 60,
+    windowSeconds: 5 * 60,
+  })
+  if (!rateLimit.allowed) {
+    return rateLimitedResponse(rateLimit)
+  }
+
   const sessionId = new URL(request.url).searchParams.get("session_id")
   if (!sessionId?.startsWith("cs_")) {
     return Response.json({ status: "invalid" }, { status: 400 })

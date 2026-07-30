@@ -1,13 +1,26 @@
 import { getPublicBookingReceipt } from "@/lib/booking-receipt"
+import {
+  checkRateLimit,
+  rateLimitedResponse,
+} from "@/lib/rate-limit"
 
 const responseHeaders = {
   "cache-control": "private, no-store, max-age=0",
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ reference: string }> }
 ) {
+  const rateLimit = await checkRateLimit(request.headers, {
+    bucket: "receipt-api",
+    limit: 30,
+    windowSeconds: 5 * 60,
+  })
+  if (!rateLimit.allowed) {
+    return rateLimitedResponse(rateLimit)
+  }
+
   try {
     const { reference } = await params
     const receipt = await getPublicBookingReceipt(reference)
