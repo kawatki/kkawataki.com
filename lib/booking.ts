@@ -3,11 +3,11 @@ export const BOOKING_DURATION_HOURS = 4
 export const DEPOSIT_AMOUNT_JPY = 2_000
 export const DEPOSIT_TERMS_VERSION = "2026-07-30"
 export const CHECKOUT_HOLD_MINUTES = 30
-export const BOOKING_WINDOW_DAYS = 56
 export const MINIMUM_NOTICE_HOURS = 24
 
 const DEFAULT_SLOT_STARTS = ["09:00", "14:00", "19:00"]
 const DEFAULT_RATE_JPY_PER_30_MINUTES = 1_000
+const DEFAULT_BOOKING_MONTHS_AHEAD = 4
 
 export type BookingSlot = {
   date: string
@@ -71,6 +71,21 @@ function addDays(date: string, days: number) {
   return next.toISOString().slice(0, 10)
 }
 
+function bookingWindowEnd(today: string) {
+  const configuredMonths = Number(process.env.BOOKING_MONTHS_AHEAD)
+  const monthsAhead =
+    Number.isInteger(configuredMonths) &&
+    configuredMonths >= 1 &&
+    configuredMonths <= 12
+      ? configuredMonths
+      : DEFAULT_BOOKING_MONTHS_AHEAD
+  const [year, month] = today.split("-").map(Number)
+
+  return new Date(Date.UTC(year, month + monthsAhead, 0))
+    .toISOString()
+    .slice(0, 10)
+}
+
 function startTimes() {
   const configured = process.env.BOOKING_SLOT_STARTS?.split(",")
     .map((time) => time.trim())
@@ -112,11 +127,14 @@ export function makeSlot(date: string, startTime: string): BookingSlot {
 export function generateCandidateSlots(now = new Date()) {
   const parts = datePartsInTokyo(now)
   const today = `${parts.year}-${parts.month}-${parts.day}`
+  const lastDate = bookingWindowEnd(today)
   const earliest = now.getTime() + MINIMUM_NOTICE_HOURS * 60 * 60 * 1_000
   const slots: BookingSlot[] = []
 
-  for (let day = 0; day < BOOKING_WINDOW_DAYS; day += 1) {
+  for (let day = 0; ; day += 1) {
     const date = addDays(today, day)
+    if (date > lastDate) break
+
     for (const time of startTimes()) {
       const slot = makeSlot(date, time)
       if (new Date(slot.start).getTime() >= earliest) {

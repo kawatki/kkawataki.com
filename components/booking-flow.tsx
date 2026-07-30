@@ -7,6 +7,8 @@ import {
   ArrowRight,
   CalendarDays,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   LoaderCircle,
   LockKeyhole,
@@ -41,12 +43,40 @@ function displayDate(date: string, options: Intl.DateTimeFormatOptions) {
   }).format(new Date(`${date}T12:00:00+09:00`))
 }
 
+function monthLabel(month: string) {
+  return new Intl.DateTimeFormat("en", {
+    month: "long",
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+  }).format(new Date(`${month}-01T12:00:00+09:00`))
+}
+
+function calendarDates(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number)
+  const firstWeekday = new Date(
+    Date.UTC(year, monthNumber - 1, 1)
+  ).getUTCDay()
+  const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate()
+  const dates: Array<string | null> = Array.from(
+    { length: firstWeekday },
+    () => null
+  )
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    dates.push(
+      `${month}-${String(day).padStart(2, "0")}`
+    )
+  }
+  return dates
+}
+
 export function BookingFlow({
   paymentCancelled = false,
 }: {
   paymentCancelled?: boolean
 }) {
   const [days, setDays] = useState<AvailabilityDay[]>([])
+  const [visibleMonth, setVisibleMonth] = useState("")
   const [selectedDate, setSelectedDate] = useState("")
   const [selectedSlot, setSelectedSlot] = useState("")
   const [pricing, setPricing] = useState<BookingPricing | null>(null)
@@ -79,9 +109,21 @@ export function BookingFlow({
       )
       const firstAvailable = result.days.find((day) => day.slots.length)
       setSelectedDate((current) =>
-        result.days?.some((day) => day.date === current && day.slots.length)
+        !current
+          ? (firstAvailable?.date ?? "")
+          : result.days?.some(
+                (day) => day.date === current && day.slots.length
+              )
+            ? current
+            : ""
+      )
+      const availableMonths = Array.from(
+        new Set(result.days.map((day) => day.date.slice(0, 7)))
+      )
+      setVisibleMonth((current) =>
+        availableMonths.includes(current)
           ? current
-          : (firstAvailable?.date ?? "")
+          : (firstAvailable?.date.slice(0, 7) ?? availableMonths[0] ?? "")
       )
     } catch (loadError) {
       setError(
@@ -103,6 +145,32 @@ export function BookingFlow({
     () => days.find((day) => day.date === selectedDate),
     [days, selectedDate]
   )
+  const months = useMemo(
+    () => Array.from(new Set(days.map((day) => day.date.slice(0, 7)))),
+    [days]
+  )
+  const visibleMonthIndex = months.indexOf(visibleMonth)
+  const daysByDate = useMemo(
+    () => new Map(days.map((day) => [day.date, day])),
+    [days]
+  )
+  const monthDates = useMemo(
+    () => (visibleMonth ? calendarDates(visibleMonth) : []),
+    [visibleMonth]
+  )
+
+  function navigateMonth(direction: -1 | 1) {
+    const nextMonth = months[visibleMonthIndex + direction]
+    if (!nextMonth) return
+
+    setVisibleMonth(nextMonth)
+    setSelectedDate(
+      days.find(
+        (day) => day.date.startsWith(nextMonth) && day.slots.length
+      )?.date ?? ""
+    )
+    setSelectedSlot("")
+  }
 
   function requestCheckout(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -192,13 +260,56 @@ export function BookingFlow({
           </div>
         ) : days.length ? (
           <>
-            <div className="mt-7 grid grid-cols-7 gap-2 text-center text-[0.65rem] font-semibold uppercase tracking-wider text-ink/40">
+            <div className="mt-7 flex items-center justify-between rounded-2xl bg-cream/70 p-2">
+              <button
+                type="button"
+                onClick={() => navigateMonth(-1)}
+                disabled={visibleMonthIndex <= 0}
+                className="flex size-10 items-center justify-center rounded-xl text-ink/60 transition hover:bg-white hover:text-ink disabled:pointer-events-none disabled:opacity-20"
+                aria-label="Previous month"
+              >
+                <ChevronLeft className="size-5" />
+              </button>
+              <h3 className="font-display text-2xl" aria-live="polite">
+                {monthLabel(visibleMonth)}
+              </h3>
+              <button
+                type="button"
+                onClick={() => navigateMonth(1)}
+                disabled={visibleMonthIndex === months.length - 1}
+                className="flex size-10 items-center justify-center rounded-xl text-ink/60 transition hover:bg-white hover:text-ink disabled:pointer-events-none disabled:opacity-20"
+                aria-label="Next month"
+              >
+                <ChevronRight className="size-5" />
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-7 gap-2 text-center text-[0.65rem] font-semibold uppercase tracking-wider text-ink/40">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
                 <span key={day}>{day}</span>
               ))}
             </div>
             <div className="mt-2 grid grid-cols-7 gap-2">
-              {days.map((day) => {
+              {monthDates.map((date, index) => {
+                if (!date) {
+                  return <span key={`empty-${index}`} aria-hidden="true" />
+                }
+
+                const day = daysByDate.get(date)
+                if (!day) {
+                  return (
+                    <span
+                      key={date}
+                      title={`${displayDate(date, {
+                        dateStyle: "long",
+                      })}: not bookable`}
+                      className="flex aspect-square items-center justify-center rounded-lg border border-ink/5 bg-ink/[0.025] text-sm font-semibold text-ink/20"
+                    >
+                      {Number(date.slice(-2))}
+                    </span>
+                  )
+                }
+
                 const available = day.slots.length
                 const booked = Math.max((day.totalSlots ?? 3) - available, 0)
                 const selected = selectedDate === day.date
@@ -251,6 +362,9 @@ export function BookingFlow({
               </span>
               <span className="inline-flex items-center gap-2">
                 <span className="size-3 rounded-sm bg-[#c95843]" /> Full
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="size-3 rounded-sm bg-ink/[0.06]" /> Unavailable
               </span>
               <span>Times shown in Japan Standard Time</span>
             </div>
