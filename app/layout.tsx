@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -34,21 +35,28 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased" data-scroll-behavior="smooth">
+    <html
+      lang="en"
+      className="h-full antialiased"
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+    >
       <body className="flex min-h-full flex-col">
-        <TooltipProvider>
-          <SiteHeader />
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
-          <Toaster
-            position="top-center"
-            offset={{ top: 88 }}
-            mobileOffset={{
-              top: "calc(env(safe-area-inset-top, 0px) + 5rem)",
-            }}
-            richColors
-          />
-        </TooltipProvider>
+        <ThemeProvider>
+          <TooltipProvider>
+            <SiteHeader />
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
+            <Toaster
+              position="top-center"
+              offset={{ top: 88 }}
+              mobileOffset={{
+                top: "calc(env(safe-area-inset-top, 0px) + 5rem)",
+              }}
+              richColors
+            />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -103,7 +103,7 @@ export default function AboutPage() {
             href="/booking"
             className={cn(
               buttonVariants({ size: "lg" }),
-              "h-12 rounded-full bg-paper px-6 text-ink hover:bg-white"
+              "h-12 rounded-full bg-paper px-6 text-ink hover:bg-white dark:hover:bg-cream"
             )}
           >
             Check availability

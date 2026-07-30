@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Dialog } from "@base-ui/react/dialog"
 import { ArrowUpRight, Menu, X } from "lucide-react"
 
+import { ThemeToggle } from "@/components/theme-toggle"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -45,103 +46,106 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <Link
-          href="/booking"
-          className={cn(
-            buttonVariants({ size: "lg" }),
-            "hidden h-10 rounded-full bg-ink px-4 hover:bg-vermilion md:inline-flex"
-          )}
-        >
-          Book
-          <ArrowUpRight />
-        </Link>
-
-        <Dialog.Root open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-          <Dialog.Trigger
-            aria-label="Open navigation menu"
-            className="flex size-11 items-center justify-center rounded-full border border-ink/15 bg-white/70 text-ink transition hover:border-ink/30 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vermilion sm:hidden"
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Link
+            href="/booking"
+            className={cn(
+              buttonVariants({ size: "lg" }),
+              "hidden h-10 rounded-full bg-ink px-4 hover:bg-vermilion md:inline-flex"
+            )}
           >
-            <Menu className="size-5" aria-hidden="true" />
-          </Dialog.Trigger>
+            Book
+            <ArrowUpRight />
+          </Link>
 
-          <Dialog.Portal>
-            <Dialog.Backdrop className="fixed inset-0 z-[60] min-h-dvh bg-ink/35 backdrop-blur-sm transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0" />
-            <Dialog.Popup
-              onTouchStart={(event) => {
-                touchStartX.current = event.touches[0]?.clientX ?? null
-              }}
-              onTouchEnd={(event) => {
-                const endX = event.changedTouches[0]?.clientX
-                if (
-                  touchStartX.current !== null &&
-                  endX !== undefined &&
-                  endX - touchStartX.current > 72
-                ) {
-                  setMobileMenuOpen(false)
-                }
-                touchStartX.current = null
-              }}
-              className="fixed inset-y-0 right-0 z-[70] flex w-[calc(100%-3.5rem)] max-w-sm touch-pan-y flex-col overflow-y-auto border-l border-ink/10 bg-paper p-6 shadow-2xl shadow-ink/25 transition-transform duration-300 ease-out data-ending-style:translate-x-full data-starting-style:translate-x-full"
+          <Dialog.Root open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <Dialog.Trigger
+              aria-label="Open navigation menu"
+              className="flex size-11 items-center justify-center rounded-full border border-ink/15 bg-card/70 text-ink transition hover:border-ink/30 hover:bg-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vermilion sm:hidden"
             >
-              <Dialog.Title className="sr-only">Navigation menu</Dialog.Title>
+              <Menu className="size-5" aria-hidden="true" />
+            </Dialog.Trigger>
 
-              <div className="flex items-center justify-between gap-4">
-                <Link
-                  href="/"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="group flex items-center gap-3"
-                  aria-label="Rental Japanese Guy home"
-                >
-                  <span className="flex size-10 items-center justify-center rounded-full bg-vermilion font-display text-lg text-white">
-                    日
-                  </span>
-                  <span className="font-display text-lg tracking-tight">
-                    Rental Japanese Guy
-                  </span>
-                </Link>
-                <Dialog.Close
-                  aria-label="Close navigation menu"
-                  className="flex size-11 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white text-ink transition hover:border-ink/30 hover:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vermilion"
-                >
-                  <X className="size-5" aria-hidden="true" />
-                </Dialog.Close>
-              </div>
-
-              <nav
-                className="mt-12 grid border-t border-ink/10"
-                aria-label="Mobile navigation"
+            <Dialog.Portal>
+              <Dialog.Backdrop className="fixed inset-0 z-[60] min-h-dvh bg-ink/35 backdrop-blur-sm transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0" />
+              <Dialog.Popup
+                onTouchStart={(event) => {
+                  touchStartX.current = event.touches[0]?.clientX ?? null
+                }}
+                onTouchEnd={(event) => {
+                  const endX = event.changedTouches[0]?.clientX
+                  if (
+                    touchStartX.current !== null &&
+                    endX !== undefined &&
+                    endX - touchStartX.current > 72
+                  ) {
+                    setMobileMenuOpen(false)
+                  }
+                  touchStartX.current = null
+                }}
+                className="fixed inset-y-0 right-0 z-[70] flex w-[calc(100%-3.5rem)] max-w-sm touch-pan-y flex-col overflow-y-auto border-l border-ink/10 bg-paper p-6 shadow-2xl shadow-black/30 transition-transform duration-300 ease-out data-ending-style:translate-x-full data-starting-style:translate-x-full"
               >
-                {navigation.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="border-b border-ink/10 py-6 font-display text-4xl leading-none tracking-tight text-ink transition hover:text-vermilion"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
+                <Dialog.Title className="sr-only">Navigation menu</Dialog.Title>
 
-              <div className="mt-auto pt-10">
-                <Link
-                  href="/booking"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={cn(
-                    buttonVariants({ size: "lg" }),
-                    "h-13 w-full rounded-full bg-ink px-6 text-white hover:bg-vermilion"
-                  )}
+                <div className="flex items-center justify-between gap-4">
+                  <Link
+                    href="/"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="group flex items-center gap-3"
+                    aria-label="Rental Japanese Guy home"
+                  >
+                    <span className="flex size-10 items-center justify-center rounded-full bg-vermilion font-display text-lg text-white">
+                      日
+                    </span>
+                    <span className="font-display text-lg tracking-tight">
+                      Rental Japanese Guy
+                    </span>
+                  </Link>
+                  <Dialog.Close
+                    aria-label="Close navigation menu"
+                    className="flex size-11 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-card text-ink transition hover:border-ink/30 hover:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vermilion"
+                  >
+                    <X className="size-5" aria-hidden="true" />
+                  </Dialog.Close>
+                </div>
+
+                <nav
+                  className="mt-12 grid border-t border-ink/10"
+                  aria-label="Mobile navigation"
                 >
-                  Book your time
-                  <ArrowUpRight />
-                </Link>
-                <p className="mt-4 text-center text-xs leading-5 text-ink/45">
-                  Tokyo, without the tourist script.
-                </p>
-              </div>
-            </Dialog.Popup>
-          </Dialog.Portal>
-        </Dialog.Root>
+                  {navigation.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="border-b border-ink/10 py-6 font-display text-4xl leading-none tracking-tight text-ink transition hover:text-vermilion"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </nav>
+
+                <div className="mt-auto pt-10">
+                  <Link
+                    href="/booking"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                      buttonVariants({ size: "lg" }),
+                      "h-13 w-full rounded-full bg-ink px-6 text-paper hover:bg-vermilion hover:text-white"
+                    )}
+                  >
+                    Book your time
+                    <ArrowUpRight />
+                  </Link>
+                  <p className="mt-4 text-center text-xs leading-5 text-ink/45">
+                    Tokyo, without the tourist script.
+                  </p>
+                </div>
+              </Dialog.Popup>
+            </Dialog.Portal>
+          </Dialog.Root>
+        </div>
       </div>
     </header>
   )

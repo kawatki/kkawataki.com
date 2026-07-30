@@ -82,7 +82,7 @@ export default function HomePage() {
                 href="/about"
                 className={cn(
                   buttonVariants({ variant: "outline", size: "lg" }),
-                  "h-12 rounded-full border-ink/20 bg-transparent px-6 hover:bg-white/50"
+                  "h-12 rounded-full border-ink/20 bg-transparent px-6 hover:bg-white/50 dark:hover:bg-ink/10"
                 )}
               >
                 How this works

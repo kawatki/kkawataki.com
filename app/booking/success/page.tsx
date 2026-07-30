@@ -19,7 +19,7 @@ export default async function BookingSuccessPage({
 
   return (
     <section className="page-shell flex min-h-[70svh] items-center justify-center py-16">
-      <div className="w-full max-w-3xl rounded-3xl border border-ink/10 bg-white px-6 py-14 shadow-xl shadow-ink/5 sm:px-12 sm:py-20">
+      <div className="w-full max-w-3xl rounded-3xl border border-ink/10 bg-card px-6 py-14 shadow-xl shadow-black/10 sm:px-12 sm:py-20">
         {sessionId ? (
           <BookingStatus sessionId={sessionId} />
         ) : (

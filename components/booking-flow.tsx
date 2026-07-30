@@ -473,7 +473,7 @@ export function BookingFlow({
     <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
       <section
         ref={calendarSectionRef}
-        className="scroll-mt-24 rounded-3xl border border-ink/10 bg-white p-5 shadow-xl shadow-ink/5 sm:p-7"
+        className="scroll-mt-24 rounded-3xl border border-ink/10 bg-card p-5 shadow-xl shadow-black/10 sm:p-7"
       >
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -510,7 +510,7 @@ export function BookingFlow({
                 type="button"
                 onClick={() => navigateMonth(-1)}
                 disabled={visibleMonthIndex <= 0}
-                className="flex size-10 items-center justify-center rounded-xl text-ink/60 transition hover:bg-white hover:text-ink disabled:pointer-events-none disabled:opacity-20"
+                className="flex size-10 items-center justify-center rounded-xl text-ink/60 transition hover:bg-cream hover:text-ink disabled:pointer-events-none disabled:opacity-20"
                 aria-label="Previous month"
               >
                 <ChevronLeft className="size-5" />
@@ -522,7 +522,7 @@ export function BookingFlow({
                 type="button"
                 onClick={() => navigateMonth(1)}
                 disabled={visibleMonthIndex === months.length - 1}
-                className="flex size-10 items-center justify-center rounded-xl text-ink/60 transition hover:bg-white hover:text-ink disabled:pointer-events-none disabled:opacity-20"
+                className="flex size-10 items-center justify-center rounded-xl text-ink/60 transition hover:bg-cream hover:text-ink disabled:pointer-events-none disabled:opacity-20"
                 aria-label="Next month"
               >
                 <ChevronRight className="size-5" />
@@ -1063,7 +1063,7 @@ export function BookingFlow({
                 </div>
 
                 {selectedPricing && (
-                  <div className="mt-5 rounded-2xl border border-ink/10 bg-white p-5">
+                  <div className="mt-5 rounded-2xl border border-ink/10 bg-card p-5">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink/45">
                       Your booking · {selectedPricing.durationHours} hours
                     </p>
@@ -1108,11 +1108,11 @@ export function BookingFlow({
                   </p>
                 )}
 
-                <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-4 text-sm leading-6 transition hover:bg-white">
+                <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-4 text-sm leading-6 transition hover:bg-card">
                   <Checkbox.Root
                     checked={depositTermsAccepted}
                     onCheckedChange={setDepositTermsAccepted}
-                    className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-ink/30 bg-white text-white outline-none transition data-[checked]:border-vermilion data-[checked]:bg-vermilion focus-visible:ring-2 focus-visible:ring-vermilion/35"
+                    className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-ink/30 bg-card text-white outline-none transition data-[checked]:border-vermilion data-[checked]:bg-vermilion focus-visible:ring-2 focus-visible:ring-vermilion/35"
                   >
                     <Checkbox.Indicator>
                       <Check className="size-3.5" strokeWidth={3} />
@@ -1127,7 +1127,7 @@ export function BookingFlow({
                   <AlertDialog.Close
                     type="button"
                     disabled={submitting}
-                    className="h-12 rounded-full border border-ink/15 px-5 text-sm font-semibold transition hover:bg-white disabled:opacity-40"
+                    className="h-12 rounded-full border border-ink/15 px-5 text-sm font-semibold transition hover:bg-card disabled:opacity-40"
                   >
                     {checkoutError ? "Choose another time" : "Go back"}
                   </AlertDialog.Close>

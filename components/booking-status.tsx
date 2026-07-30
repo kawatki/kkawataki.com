@@ -108,7 +108,7 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
                   Keep this reference for questions about your booking.
                 </p>
               </div>
-              <code className="w-fit rounded-full border border-jade/20 bg-white px-4 py-2 font-mono text-sm font-semibold tracking-wide text-jade">
+              <code className="w-fit rounded-full border border-jade/20 bg-card px-4 py-2 font-mono text-sm font-semibold tracking-wide text-jade">
                 {receipt.bookingReference}
               </code>
             </div>
