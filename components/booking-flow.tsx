@@ -27,6 +27,10 @@ type AvailabilityDay = {
 }
 
 type AvailabilityResponse = {
+  dayHours?: {
+    end: string
+    start: string
+  }
   days?: AvailabilityDay[]
   error?: string
   pricing?: BookingPricing
@@ -84,6 +88,22 @@ function startOptions(day: AvailabilityDay, pricing: BookingPricing) {
   )
 }
 
+function timelineTimes(
+  startTime: string,
+  endTime: string,
+  incrementMinutes: number
+) {
+  const times: string[] = []
+  for (
+    let minute = timeToMinutes(startTime);
+    minute < timeToMinutes(endTime);
+    minute += incrementMinutes
+  ) {
+    times.push(minutesToTime(minute))
+  }
+  return times
+}
+
 function displayDate(date: string, options: Intl.DateTimeFormatOptions) {
   return new Intl.DateTimeFormat("en", {
     timeZone: "Asia/Tokyo",
@@ -128,6 +148,10 @@ export function BookingFlow({
   const [selectedDate, setSelectedDate] = useState("")
   const [selectedStart, setSelectedStart] = useState("")
   const [selectedEnd, setSelectedEnd] = useState("")
+  const [dayHours, setDayHours] = useState({
+    end: "23:00",
+    start: "09:00",
+  })
   const [pricing, setPricing] = useState<BookingPricing | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -143,11 +167,17 @@ export function BookingFlow({
     try {
       const response = await fetch("/api/availability", { cache: "no-store" })
       const result = (await response.json()) as AvailabilityResponse
-      if (!response.ok || !result.days || !result.pricing) {
+      if (
+        !response.ok ||
+        !result.dayHours ||
+        !result.days ||
+        !result.pricing
+      ) {
         throw new Error(result.error ?? "Available times could not be loaded.")
       }
 
       setDays(result.days)
+      setDayHours(result.dayHours)
       setPricing(result.pricing)
       setSelectedStart("")
       setSelectedEnd("")
@@ -212,6 +242,24 @@ export function BookingFlow({
     activeDay && pricing
       ? endOptions(activeDay, selectedStart, pricing)
       : []
+  const activeTimelineTimes = useMemo(
+    () =>
+      pricing
+        ? timelineTimes(
+            dayHours.start,
+            dayHours.end,
+            pricing.bookingIncrementMinutes
+          )
+        : [],
+    [dayHours.end, dayHours.start, pricing]
+  )
+  const timelineRows = useMemo(() => {
+    const midpoint = Math.ceil(activeTimelineTimes.length / 2)
+    return [
+      activeTimelineTimes.slice(0, midpoint),
+      activeTimelineTimes.slice(midpoint),
+    ].filter((row) => row.length)
+  }, [activeTimelineTimes])
   const selectedPricing = useMemo(() => {
     if (!pricing || !selectedStart || !selectedEnd) return null
 
@@ -249,6 +297,29 @@ export function BookingFlow({
     )
     setSelectedStart("")
     setSelectedEnd("")
+  }
+
+  function selectTimelineTime(time: string) {
+    if (!activeDay || !pricing) return
+
+    const canStart = activeStartOptions.includes(time)
+    if (!selectedStart || selectedEnd) {
+      if (canStart) {
+        setSelectedStart(time)
+        setSelectedEnd("")
+      }
+      return
+    }
+
+    const endTime = minutesToTime(
+      timeToMinutes(time) + pricing.bookingIncrementMinutes
+    )
+    if (activeEndOptions.includes(endTime)) {
+      setSelectedEnd(endTime)
+    } else if (canStart) {
+      setSelectedStart(time)
+      setSelectedEnd("")
+    }
   }
 
   function requestCheckout(event: React.FormEvent<HTMLFormElement>) {
@@ -398,19 +469,6 @@ export function BookingFlow({
 
                 const available =
                   pricing ? startOptions(day, pricing).length : 0
-                const minimumSegments = pricing
-                  ? pricing.minimumDurationMinutes /
-                    pricing.bookingIncrementMinutes
-                  : 8
-                const booked = Math.min(
-                  3,
-                  Math.ceil(
-                    Math.max(
-                      day.totalSegments - day.availableTimes.length,
-                      0
-                    ) / minimumSegments
-                  )
-                )
                 const selected = selectedDate === day.date
                 return (
                   <button
@@ -426,26 +484,15 @@ export function BookingFlow({
                       dateStyle: "long",
                     })}: ${
                       available
-                        ? booked === 0
-                          ? "open"
-                          : booked === 1
-                            ? "some time booked"
-                            : "limited availability"
+                        ? "available"
                         : "no four-hour range available"
                     }`}
                     className={cn(
                       "aspect-square rounded-lg border text-sm font-semibold transition",
                       available === 0 &&
-                        "cursor-not-allowed border-[#c95843] bg-[#c95843] text-white/90",
+                        "cursor-not-allowed border-ink/5 bg-ink/[0.08] text-ink/30",
                       available > 0 &&
-                        booked === 0 &&
                         "border-[#286557] bg-[#286557] text-white hover:bg-[#22584c]",
-                      available > 0 &&
-                        booked === 1 &&
-                        "border-[#c8843e] bg-[#c8843e] text-white hover:bg-[#b67434]",
-                      available > 0 &&
-                        booked >= 2 &&
-                        "border-[#d5a93e] bg-[#e3b94f] text-[#332a16] hover:bg-[#d8ad43]",
                       selected && "ring-2 ring-vermilion ring-offset-2"
                     )}
                   >
@@ -456,19 +503,10 @@ export function BookingFlow({
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink/45">
               <span className="inline-flex items-center gap-2">
-                <span className="size-3 rounded-sm bg-[#286557]" /> Open
+                <span className="size-3 rounded-sm bg-[#286557]" /> Available
               </span>
               <span className="inline-flex items-center gap-2">
-                <span className="size-3 rounded-sm bg-[#c8843e]" /> Some booked
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <span className="size-3 rounded-sm bg-[#e3b94f]" /> Limited
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <span className="size-3 rounded-sm bg-[#c95843]" /> Full
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <span className="size-3 rounded-sm bg-ink/[0.06]" /> Unavailable
+                <span className="size-3 rounded-sm bg-ink/[0.08]" /> Unavailable
               </span>
               <span>Times shown in Japan Standard Time</span>
             </div>
@@ -484,9 +522,141 @@ export function BookingFlow({
                   })}
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-ink/55">
-                  Choose at least four hours, in 30-minute increments.
+                  Tap an available start, then tap your end time. Bookings are
+                  at least four hours, in 30-minute increments.
                 </p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+
+                <div className="mt-5 rounded-2xl border border-ink/10 bg-cream/60 p-4 sm:p-5">
+                  <div className="space-y-5">
+                    {timelineRows.map((row) => {
+                      const rowEnd = minutesToTime(
+                        timeToMinutes(row.at(-1) ?? dayHours.end) +
+                          (pricing?.bookingIncrementMinutes ?? 30)
+                      )
+                      return (
+                        <div key={row[0]}>
+                          <div className="mb-2 flex items-center justify-between font-mono text-[0.7rem] text-ink/50">
+                            <span>{row[0]}</span>
+                            <span>{rowEnd}</span>
+                          </div>
+                          <div
+                            className="grid gap-0.5"
+                            style={{
+                              gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))`,
+                            }}
+                          >
+                            {row.map((time, index) => {
+                              const available =
+                                activeDay.availableTimes.includes(time)
+                              const segmentStart = timeToMinutes(time)
+                              const selectionStart = selectedStart
+                                ? timeToMinutes(selectedStart)
+                                : Number.NaN
+                              const selectionEnd = selectedEnd
+                                ? timeToMinutes(selectedEnd)
+                                : selectionStart +
+                                  (pricing?.bookingIncrementMinutes ?? 30)
+                              const selected =
+                                Boolean(selectedStart) &&
+                                segmentStart >= selectionStart &&
+                                segmentStart < selectionEnd
+                              const isStart =
+                                selected && segmentStart === selectionStart
+                              const isEnd =
+                                selected &&
+                                segmentStart +
+                                  (pricing?.bookingIncrementMinutes ?? 30) ===
+                                  selectionEnd
+
+                              return (
+                                <button
+                                  key={time}
+                                  type="button"
+                                  disabled={!available}
+                                  onClick={() => selectTimelineTime(time)}
+                                  aria-pressed={selected}
+                                  aria-label={`${displayTime(time)} to ${displayTime(
+                                    minutesToTime(
+                                      segmentStart +
+                                        (pricing?.bookingIncrementMinutes ?? 30)
+                                    )
+                                  )}: ${
+                                    available ? "available" : "unavailable"
+                                  }${selected ? ", selected" : ""}`}
+                                  title={`${displayTime(time)} · ${
+                                    available ? "Available" : "Unavailable"
+                                  }`}
+                                  className={cn(
+                                    "relative h-11 transition first:rounded-l-xl last:rounded-r-xl focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                                    available
+                                      ? "bg-[#286557] hover:bg-[#22584c]"
+                                      : "cursor-not-allowed bg-ink/[0.12]",
+                                    index === 0 && "rounded-l-xl",
+                                    index === row.length - 1 && "rounded-r-xl"
+                                  )}
+                                >
+                                  {selected && (
+                                    <span
+                                      aria-hidden="true"
+                                      className="absolute inset-x-0 bottom-0 h-1 bg-ink"
+                                    />
+                                  )}
+                                  {isStart && (
+                                    <span
+                                      aria-hidden="true"
+                                      className="absolute inset-y-1 left-0 w-1 rounded-full bg-ink"
+                                    />
+                                  )}
+                                  {isEnd && (
+                                    <span
+                                      aria-hidden="true"
+                                      className="absolute inset-y-1 right-0 w-1 rounded-full bg-ink"
+                                    />
+                                  )}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink/50">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="size-3 rounded-sm bg-[#286557]" />
+                      Available
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="size-3 rounded-sm bg-ink/[0.12]" />
+                      Unavailable
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-3 w-4 border-b-2 border-x-2 border-ink" />
+                      Selected
+                    </span>
+                  </div>
+
+                  <p
+                    className="mt-4 text-sm font-medium text-ink/70"
+                    aria-live="polite"
+                  >
+                    {!selectedStart
+                      ? "Choose your start time."
+                      : !selectedEnd
+                        ? `Starts at ${displayTime(
+                            selectedStart
+                          )}. Now choose an end time at least four hours later.`
+                        : `${displayTime(selectedStart)}–${displayTime(
+                            selectedEnd
+                          )} selected. Tap another available time to start again.`}
+                  </p>
+                </div>
+
+                <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-ink/40">
+                  Fine-tune exact times
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label className="grid gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/45">
                     Start
                     <span className="relative">

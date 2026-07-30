@@ -1,4 +1,8 @@
-import { generateCandidateSlots, getBookingPricing } from "@/lib/booking"
+import {
+  bookingDayHours,
+  generateCandidateSlots,
+  getBookingPricing,
+} from "@/lib/booking"
 import { listAvailableSlots } from "@/lib/google-calendar"
 import {
   bookingConfigurationReady,
@@ -30,7 +34,11 @@ export async function GET() {
       }
     )
     return Response.json(
-      { days, pricing: getBookingPricing() },
+      {
+        dayHours: bookingDayHours(),
+        days,
+        pricing: getBookingPricing(),
+      },
       { headers: { "cache-control": "no-store, max-age=0" } }
     )
   } catch (error) {
