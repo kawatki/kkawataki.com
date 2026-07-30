@@ -9,6 +9,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  CircleAlert,
   Clock3,
   LoaderCircle,
   LockKeyhole,
@@ -19,6 +20,16 @@ import {
 
 import type { BookingPricing } from "@/lib/booking"
 import { cn } from "@/lib/utils"
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 type AvailabilityDay = {
   availableTimes: string[]
@@ -516,15 +527,19 @@ export function BookingFlow({
                 const day = daysByDate.get(date)
                 if (!day) {
                   return (
-                    <span
-                      key={date}
-                      title={`${displayDate(date, {
-                        dateStyle: "long",
-                      })}: not bookable`}
-                      className="flex aspect-square items-center justify-center rounded-lg border border-ink/5 bg-ink/[0.025] text-sm font-semibold text-ink/20"
-                    >
-                      {Number(date.slice(-2))}
-                    </span>
+                    <Tooltip key={date}>
+                      <TooltipTrigger
+                        render={
+                          <span className="flex aspect-square items-center justify-center rounded-lg border border-ink/5 bg-ink/[0.025] text-sm font-semibold text-ink/20" />
+                        }
+                      >
+                        {Number(date.slice(-2))}
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {displayDate(date, { dateStyle: "long" })} · Not
+                        bookable
+                      </TooltipContent>
+                    </Tooltip>
                   )
                 }
 
@@ -539,27 +554,34 @@ export function BookingFlow({
                   pricing ? startOptions(day, pricing).length : 0
                 const selected = selectedDate === day.date
                 return (
-                  <button
-                    key={day.date}
-                    type="button"
-                    disabled={!available}
-                    onClick={() => {
-                      setSelectedDate(day.date)
-                      setSelectedStart("")
-                      setSelectedEnd("")
-                    }}
-                    title={`${displayDate(day.date, {
-                      dateStyle: "long",
-                    })}: ${availability.label.toLowerCase()}`}
-                    className={cn(
-                      "aspect-square rounded-lg border text-sm font-semibold transition",
-                      availability.className,
-                      available === 0 && "cursor-not-allowed",
-                      selected && "ring-2 ring-vermilion ring-offset-2"
-                    )}
-                  >
-                    {Number(day.date.slice(-2))}
-                  </button>
+                  <Tooltip key={day.date}>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          type="button"
+                          aria-disabled={!available}
+                          onClick={() => {
+                            if (!available) return
+                            setSelectedDate(day.date)
+                            setSelectedStart("")
+                            setSelectedEnd("")
+                          }}
+                          className={cn(
+                            "aspect-square rounded-lg border text-sm font-semibold transition",
+                            availability.className,
+                            available === 0 && "cursor-not-allowed",
+                            selected && "ring-2 ring-vermilion ring-offset-2"
+                          )}
+                        />
+                      }
+                    >
+                      {Number(day.date.slice(-2))}
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {displayDate(day.date, { dateStyle: "long" })} ·{" "}
+                      {availability.label}
+                    </TooltipContent>
+                  </Tooltip>
                 )
               })}
             </div>
@@ -590,11 +612,19 @@ export function BookingFlow({
                   })}
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-ink/55">
-                  Tap an available start, then tap your end time. Bookings are
-                  at least four hours, in 30-minute increments. A{" "}
+                  Tap an available start, then tap your end time. Times are
+                  offered in 30-minute increments. A{" "}
                   {transportBufferMinutes / 60}-hour transportation buffer is
                   automatically kept after every booking.
                 </p>
+                <Alert className="mt-4 border-vermilion/20 bg-vermilion/[0.06] px-4 py-3 text-ink">
+                  <CircleAlert className="text-vermilion" />
+                  <AlertTitle>Minimum booking: 4 hours</AlertTitle>
+                  <AlertDescription className="text-ink/60">
+                    Choose an end time at least four hours after your selected
+                    start time.
+                  </AlertDescription>
+                </Alert>
 
                 <div className="mt-5 rounded-2xl border border-ink/10 bg-cream/60 p-4 sm:p-5">
                   <div className="space-y-5">
@@ -630,39 +660,57 @@ export function BookingFlow({
                                 Boolean(selectedStart) &&
                                 segmentStart >= selectionStart &&
                                 segmentStart < selectionEnd
+                              const segmentEnd = minutesToTime(
+                                segmentStart +
+                                  (pricing?.bookingIncrementMinutes ?? 30)
+                              )
 
                               return (
-                                <button
-                                  key={time}
-                                  type="button"
-                                  disabled={!available}
-                                  onClick={() => selectTimelineTime(time)}
-                                  aria-pressed={selected}
-                                  aria-label={`${displayTime(time)} to ${displayTime(
-                                    minutesToTime(
-                                      segmentStart +
-                                        (pricing?.bookingIncrementMinutes ?? 30)
-                                    )
-                                  )}: ${
-                                    available ? "available" : "unavailable"
-                                  }${selected ? ", selected" : ""}`}
-                                  title={`${displayTime(time)} · ${
-                                    available ? "Available" : "Unavailable"
-                                  }`}
-                                  className={cn(
-                                    "relative h-11 transition first:rounded-l-xl last:rounded-r-xl focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                                    !available &&
-                                      "cursor-not-allowed bg-ink/[0.12]",
-                                    available &&
-                                      !selected &&
-                                      "bg-[#BFD4CE] hover:bg-[#ABC8C0]",
-                                    available &&
-                                      selected &&
-                                      "bg-[#286557] hover:bg-[#22584C]",
-                                    index === 0 && "rounded-l-xl",
-                                    index === row.length - 1 && "rounded-r-xl"
-                                  )}
-                                />
+                                <Tooltip key={time}>
+                                  <TooltipTrigger
+                                    render={
+                                      <button
+                                        type="button"
+                                        aria-disabled={!available}
+                                        onClick={() => {
+                                          if (!available) return
+                                          selectTimelineTime(time)
+                                        }}
+                                        aria-pressed={selected}
+                                        aria-label={`${displayTime(
+                                          time
+                                        )} to ${displayTime(segmentEnd)}: ${
+                                          available
+                                            ? "available"
+                                            : "unavailable"
+                                        }${selected ? ", selected" : ""}`}
+                                        className={cn(
+                                          "relative h-11 transition first:rounded-l-xl last:rounded-r-xl focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                                          !available &&
+                                            "cursor-not-allowed bg-ink/[0.12]",
+                                          available &&
+                                            !selected &&
+                                            "bg-[#BFD4CE] hover:bg-[#ABC8C0]",
+                                          available &&
+                                            selected &&
+                                            "bg-[#286557] hover:bg-[#22584C]",
+                                          index === 0 && "rounded-l-xl",
+                                          index === row.length - 1 &&
+                                            "rounded-r-xl"
+                                        )}
+                                      />
+                                    }
+                                  />
+                                  <TooltipContent>
+                                    {displayTime(time)}–{displayTime(segmentEnd)}{" "}
+                                    ·{" "}
+                                    {selected
+                                      ? "Selected"
+                                      : available
+                                        ? "Available"
+                                        : "Unavailable"}
+                                  </TooltipContent>
+                                </Tooltip>
                               )
                             })}
                           </div>
