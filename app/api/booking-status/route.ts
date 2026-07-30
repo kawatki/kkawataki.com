@@ -1,4 +1,7 @@
-import { getBookingPricing } from "@/lib/booking"
+import {
+  bookingTransportBufferMinutes,
+  getBookingPricing,
+} from "@/lib/booking"
 import { getBookingState } from "@/lib/google-calendar"
 import { getStripe } from "@/lib/stripe"
 
@@ -25,7 +28,28 @@ export async function GET(request: Request) {
     }
 
     const calendarState = await getBookingState(eventId, session.id)
+    const metadata = session.metadata ?? {}
+    const receipt =
+      metadata.booking_reference &&
+      metadata.slot_start &&
+      metadata.slot_end
+        ? {
+            balanceDueJpy: pricing.balanceDueJpy,
+            bookingReference: metadata.booking_reference,
+            customerEmail:
+              session.customer_details?.email ?? session.customer_email ?? "",
+            depositAmountJpy: pricing.depositAmountJpy,
+            durationHours: pricing.durationHours,
+            rateJpyPer30Minutes: pricing.rateJpyPer30Minutes,
+            requestTitle: metadata.booking_title ?? "",
+            serviceTotalJpy: pricing.serviceTotalJpy,
+            slotEnd: metadata.slot_end,
+            slotStart: metadata.slot_start,
+            transportBufferMinutes: bookingTransportBufferMinutes(),
+          }
+        : undefined
     return Response.json({
+      receipt,
       status: calendarState === "confirmed" ? "confirmed" : "processing",
     })
   } catch (error) {

@@ -196,13 +196,19 @@ function holdBody(
   request: BookingRequest,
   expiresAt: number,
   holdToken: string,
+  bookingReference: string,
   stripeSessionId = ""
 ) {
   return {
-    description: "This time is temporarily held while the customer completes payment.",
+    description: [
+      `Booking reference: ${bookingReference}`,
+      "",
+      "This time is temporarily held while the customer completes payment.",
+    ].join("\n"),
     end: { dateTime: slot.end, timeZone: BOOKING_TIME_ZONE },
     extendedProperties: {
       private: {
+        bookingReference,
         bookingState: "hold",
         customerEmail: request.email,
         customerName: request.name,
@@ -289,7 +295,8 @@ export async function acquireSlot(
   slot: BookingSlot,
   request: BookingRequest,
   expiresAt: number,
-  holdToken: string
+  holdToken: string,
+  bookingReference: string
 ) {
   const [available] = await listAvailableSlots([slot])
   if (!available) {
@@ -297,7 +304,13 @@ export async function acquireSlot(
   }
 
   const existing = await getEvent(slot.id)
-  const body = holdBody(slot, request, expiresAt, holdToken)
+  const body = holdBody(
+    slot,
+    request,
+    expiresAt,
+    holdToken,
+    bookingReference
+  )
 
   if (!existing) {
     try {
@@ -457,6 +470,10 @@ export async function confirmPaidBooking(input: {
 
   const inviteCustomer = process.env.GOOGLE_INVITE_CUSTOMERS === "true"
   const description = [
+    properties.bookingReference
+      ? `Booking reference: ${properties.bookingReference}`
+      : "",
+    "",
     `Customer: ${input.name}`,
     `Email: ${input.email}`,
     "",

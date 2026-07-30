@@ -1,5 +1,6 @@
 import {
   CHECKOUT_HOLD_MINUTES,
+  createBookingReference,
   DEPOSIT_TERMS_VERSION,
   getBookingPricing,
   parseBookingRequest,
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
       booking.endTime
     )
     const pricing = getBookingPricing(slot.durationMinutes)
+    const bookingReference = createBookingReference()
     slotId = slot.id
     holdToken = crypto.randomUUID()
 
@@ -46,7 +48,13 @@ export async function POST(request: Request) {
     const expiresAt =
       Math.floor(Date.now() / 1_000) + CHECKOUT_HOLD_MINUTES * 60 + 60
 
-    await acquireSlot(slot, booking, expiresAt, holdToken)
+    await acquireSlot(
+      slot,
+      booking,
+      expiresAt,
+      holdToken,
+      bookingReference
+    )
 
     const stripe = getStripe()
     const origin = new URL(request.url).origin
@@ -65,7 +73,7 @@ export async function POST(request: Request) {
             currency: "jpy",
             product_data: {
               description: "Applied to the final amount paid in person.",
-              name: "Rental Japanese Guy booking deposit",
+              name: `Rental Japanese Guy deposit · ${bookingReference}`,
             },
             unit_amount: pricing.depositAmountJpy,
           },
@@ -73,6 +81,7 @@ export async function POST(request: Request) {
         },
       ],
       metadata: {
+        booking_reference: bookingReference,
         booking_event_id: slot.id,
         booking_notes: booking.notes,
         booking_title: booking.title,
@@ -90,8 +99,9 @@ export async function POST(request: Request) {
       },
       mode: "payment",
       payment_intent_data: {
-        description: `Rental Japanese Guy deposit — ${slot.label}`,
+        description: `Rental Japanese Guy ${bookingReference} — ${slot.label}`,
         metadata: {
+          booking_reference: bookingReference,
           booking_event_id: slot.id,
           slot_start: slot.start,
         },

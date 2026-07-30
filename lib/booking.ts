@@ -43,6 +43,18 @@ export type BookingPricing = {
   serviceTotalJpy: number
 }
 
+export function createBookingReference() {
+  const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+  const random = crypto.getRandomValues(new Uint8Array(8))
+  const characters = Array.from(
+    random,
+    (value) => alphabet[value % alphabet.length]
+  )
+  return `RJG-${characters.slice(0, 4).join("")}-${characters
+    .slice(4)
+    .join("")}`
+}
+
 export function getBookingPricing(
   durationMinutes = MINIMUM_BOOKING_MINUTES
 ): BookingPricing {

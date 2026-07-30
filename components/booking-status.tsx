@@ -5,8 +5,42 @@ import { CalendarCheck, LoaderCircle } from "lucide-react"
 
 type BookingStatus = "confirmed" | "invalid" | "pending" | "processing"
 
+type BookingReceipt = {
+  balanceDueJpy: number
+  bookingReference: string
+  customerEmail: string
+  depositAmountJpy: number
+  durationHours: number
+  rateJpyPer30Minutes: number
+  requestTitle: string
+  serviceTotalJpy: number
+  slotEnd: string
+  slotStart: string
+  transportBufferMinutes: number
+}
+
+function yen(amount: number) {
+  return `¥${amount.toLocaleString("en-US")}`
+}
+
+function receiptDate(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "long",
+    timeZone: "Asia/Tokyo",
+  }).format(new Date(value))
+}
+
+function receiptTime(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Tokyo",
+  }).format(new Date(value))
+}
+
 export function BookingStatus({ sessionId }: { sessionId: string }) {
   const [status, setStatus] = useState<BookingStatus>("processing")
+  const [receipt, setReceipt] = useState<BookingReceipt | null>(null)
 
   useEffect(() => {
     let stopped = false
@@ -20,9 +54,15 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
           `/api/booking-status/?session_id=${encodeURIComponent(sessionId)}`,
           { cache: "no-store" }
         )
-        const result = (await response.json()) as { status?: BookingStatus }
+        const result = (await response.json()) as {
+          receipt?: BookingReceipt
+          status?: BookingStatus
+        }
         if (!stopped && result.status) {
           setStatus(result.status)
+          if (result.receipt) {
+            setReceipt(result.receipt)
+          }
           if (result.status === "confirmed" || attempts >= 8) {
             return
           }
@@ -44,16 +84,110 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
 
   if (status === "confirmed") {
     return (
-      <div className="text-center">
-        <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-jade text-white">
-          <CalendarCheck className="size-8" />
-        </span>
-        <p className="eyebrow mt-7">Payment received</p>
-        <h1 className="mt-4 font-display text-5xl sm:text-7xl">You’re booked.</h1>
-        <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-ink/65">
-          Your appointment is now in the calendar. Stripe will send the payment
-          receipt to the email address you provided.
-        </p>
+      <div>
+        <div className="text-center">
+          <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-jade text-white">
+            <CalendarCheck className="size-8" />
+          </span>
+          <p className="eyebrow mt-7">Payment received</p>
+          <h1 className="mt-4 font-display text-5xl sm:text-7xl">
+            You’re booked.
+          </h1>
+          <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-ink/65">
+            Your appointment is now in the calendar. Stripe will send the
+            payment receipt to the email address you provided.
+          </p>
+        </div>
+
+        {receipt && (
+          <section className="mx-auto mt-10 max-w-2xl overflow-hidden rounded-2xl border border-ink/10 text-left">
+            <div className="flex flex-col gap-3 bg-cream/70 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+              <div>
+                <p className="eyebrow">Booking receipt</p>
+                <p className="mt-1 text-sm text-ink/55">
+                  Keep this reference for questions about your booking.
+                </p>
+              </div>
+              <code className="w-fit rounded-full border border-jade/20 bg-white px-4 py-2 font-mono text-sm font-semibold tracking-wide text-jade">
+                {receipt.bookingReference}
+              </code>
+            </div>
+
+            <div className="grid gap-6 px-5 py-6 sm:px-7">
+              <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-ink/45">Date</dt>
+                  <dd className="mt-1 font-semibold">
+                    {receiptDate(receipt.slotStart)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-ink/45">Time</dt>
+                  <dd className="mt-1 font-semibold">
+                    {receiptTime(receipt.slotStart)}–
+                    {receiptTime(receipt.slotEnd)} JST
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-ink/45">Duration</dt>
+                  <dd className="mt-1 font-semibold">
+                    {receipt.durationHours} hours
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-ink/45">Email</dt>
+                  <dd className="mt-1 break-all font-semibold">
+                    {receipt.customerEmail}
+                  </dd>
+                </div>
+                {receipt.requestTitle && (
+                  <div className="sm:col-span-2">
+                    <dt className="text-ink/45">Plan</dt>
+                    <dd className="mt-1 font-semibold">
+                      {receipt.requestTitle}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+
+              <dl className="grid gap-3 border-t border-ink/10 pt-5 text-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-ink/55">
+                    Service total · {yen(receipt.rateJpyPer30Minutes)} / 30 min
+                  </dt>
+                  <dd className="font-semibold">
+                    {yen(receipt.serviceTotalJpy)}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-ink/55">Deposit paid to Stripe</dt>
+                  <dd className="font-semibold text-jade">
+                    {yen(receipt.depositAmountJpy)}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-4 border-t border-ink/10 pt-3">
+                  <dt className="font-semibold">Pay in person</dt>
+                  <dd className="font-semibold text-vermilion">
+                    {yen(receipt.balanceDueJpy)}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="rounded-xl bg-cream/70 px-4 py-4 text-sm leading-6 text-ink/60">
+                <p>
+                  The deposit is non-refundable if you cancel or do not attend.
+                  If I cancel, it will be refunded.
+                </p>
+                <p className="mt-2">
+                  You also cover transportation costs and any food or drinks
+                  during our time together. A{" "}
+                  {receipt.transportBufferMinutes / 60}-hour transportation
+                  buffer is reserved after your booking.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
       </div>
     )
   }
