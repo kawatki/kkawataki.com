@@ -54,6 +54,20 @@ export type BookingPricing = {
   serviceTotalJpy: number
 }
 
+export type BookingReceipt = {
+  balanceDueJpy: number
+  bookingReference: string
+  customerEmail: string
+  depositAmountJpy: number
+  durationHours: number
+  rateJpyPer30Minutes: number
+  requestTitle: string
+  serviceTotalJpy: number
+  slotEnd: string
+  slotStart: string
+  transportBufferMinutes: number
+}
+
 export function createBookingReference() {
   const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
   const random = crypto.getRandomValues(new Uint8Array(8))

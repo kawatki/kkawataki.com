@@ -152,6 +152,7 @@ async function googleRequest<T>(
   const accessToken = await getGoogleAccessToken()
   const response = await fetch(url, {
     ...init,
+    cache: "no-store",
     headers: {
       authorization: `Bearer ${accessToken}`,
       "content-type": "application/json",
@@ -296,6 +297,47 @@ async function getEvent(eventId: string) {
     404,
     410,
   ])
+}
+
+export async function findConfirmedBookingByReference(
+  bookingReference: string
+) {
+  const result = await googleRequest<GoogleEventList>(
+    calendarUrl("", {
+      maxResults: "10",
+      privateExtendedProperty: `bookingReference=${bookingReference}`,
+      showDeleted: "false",
+      singleEvents: "true",
+    })
+  )
+
+  const event = (result?.items ?? []).find((candidate) => {
+    const properties = bookingProperties(candidate)
+    return (
+      candidate.status !== "cancelled" &&
+      properties.bookingReference === bookingReference &&
+      properties.bookingState === "confirmed"
+    )
+  })
+  const properties = event ? bookingProperties(event) : {}
+  const slotStart = event?.start?.dateTime
+  const slotEnd = event?.end?.dateTime
+
+  if (
+    !event?.id ||
+    !slotStart ||
+    !slotEnd ||
+    !properties.stripeSessionId
+  ) {
+    return null
+  }
+
+  return {
+    eventId: event.id,
+    slotEnd,
+    slotStart,
+    stripeSessionId: properties.stripeSessionId,
+  }
 }
 
 export async function acquireSlot(

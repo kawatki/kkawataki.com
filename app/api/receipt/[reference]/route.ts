@@ -1,0 +1,28 @@
+import { getPublicBookingReceipt } from "@/lib/booking-receipt"
+
+const responseHeaders = {
+  "cache-control": "private, no-store, max-age=0",
+}
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ reference: string }> }
+) {
+  try {
+    const { reference } = await params
+    const receipt = await getPublicBookingReceipt(reference)
+    if (!receipt) {
+      return Response.json(
+        { error: "Booking receipt not found." },
+        { headers: responseHeaders, status: 404 }
+      )
+    }
+    return Response.json({ receipt }, { headers: responseHeaders })
+  } catch (error) {
+    console.error("Public receipt lookup failed", error)
+    return Response.json(
+      { error: "Booking receipt is temporarily unavailable." },
+      { headers: responseHeaders, status: 503 }
+    )
+  }
+}
