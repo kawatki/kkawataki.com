@@ -1,9 +1,20 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CalendarCheck, LoaderCircle } from "lucide-react"
+import {
+  CalendarCheck,
+  CircleAlert,
+  LoaderCircle,
+  RefreshCw,
+} from "lucide-react"
 
-type BookingStatus = "confirmed" | "invalid" | "pending" | "processing"
+type BookingStatus =
+  | "confirmed"
+  | "delayed"
+  | "error"
+  | "invalid"
+  | "pending"
+  | "processing"
 
 type BookingReceipt = {
   balanceDueJpy: number
@@ -63,7 +74,15 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
           if (result.receipt) {
             setReceipt(result.receipt)
           }
-          if (result.status === "confirmed" || attempts >= 8) {
+          if (
+            result.status === "confirmed" ||
+            result.status === "error" ||
+            result.status === "invalid"
+          ) {
+            return
+          }
+          if (attempts >= 8) {
+            setStatus("delayed")
             return
           }
         }
@@ -187,6 +206,55 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
               </div>
             </div>
           </section>
+        )}
+      </div>
+    )
+  }
+
+  if (status === "invalid" || status === "error" || status === "delayed") {
+    const copy =
+      status === "invalid"
+        ? {
+            description:
+              "This Checkout Session is not recognized by the Stripe account connected to this site. Use the complete confirmation link from Stripe, or return to booking.",
+            eyebrow: "Confirmation link not found",
+            title: "We can’t verify this payment.",
+          }
+        : status === "error"
+          ? {
+              description:
+                "The payment service could not be reached right now. Your payment has not been marked as confirmed here. Please try again in a moment.",
+              eyebrow: "Temporary confirmation error",
+              title: "We couldn’t check Stripe.",
+            }
+          : {
+              description:
+                "Stripe has the payment, but the calendar is taking longer than expected to confirm it. Keep your Stripe receipt and refresh this page shortly.",
+              eyebrow: "Confirmation delayed",
+              title: "This is taking longer.",
+            }
+
+    return (
+      <div className="text-center">
+        <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-vermilion/10 text-vermilion">
+          <CircleAlert className="size-8" />
+        </span>
+        <p className="eyebrow mt-7">{copy.eyebrow}</p>
+        <h1 className="mt-4 font-display text-5xl sm:text-6xl">
+          {copy.title}
+        </h1>
+        <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-ink/65">
+          {copy.description}
+        </p>
+        {status !== "invalid" && (
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mx-auto mt-7 flex h-10 items-center justify-center gap-2 rounded-full border border-ink/15 px-5 text-sm font-semibold transition hover:bg-cream"
+          >
+            <RefreshCw className="size-4" />
+            Check again
+          </button>
         )}
       </div>
     )

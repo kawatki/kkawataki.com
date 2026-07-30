@@ -5,6 +5,15 @@ import {
 import { getBookingState } from "@/lib/google-calendar"
 import { getStripe } from "@/lib/stripe"
 
+function isMissingStripeSession(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "resource_missing"
+  )
+}
+
 export async function GET(request: Request) {
   const sessionId = new URL(request.url).searchParams.get("session_id")
   if (!sessionId?.startsWith("cs_")) {
@@ -53,7 +62,10 @@ export async function GET(request: Request) {
       status: calendarState === "confirmed" ? "confirmed" : "processing",
     })
   } catch (error) {
+    if (isMissingStripeSession(error)) {
+      return Response.json({ status: "invalid" }, { status: 404 })
+    }
     console.error("Booking status lookup failed", error)
-    return Response.json({ status: "processing" })
+    return Response.json({ status: "error" }, { status: 502 })
   }
 }
