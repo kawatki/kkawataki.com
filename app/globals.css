@@ -190,22 +190,28 @@
   }
 
   .booking-guide-pulse {
-    animation: booking-guide-pulse 1.4s ease-out;
+    --guide-pulse-width: 4px;
+    animation: booking-guide-pulse 1.75s ease-in-out;
   }
 
   .booking-guide-pulse-dark {
-    --guide-pulse-color: var(--jade-light);
+    --guide-pulse-color: #ff765c;
+    --guide-pulse-width: 5px;
   }
 }
 
 @keyframes booking-guide-pulse {
   0%,
+  34%,
+  68%,
   100% {
     outline: 0 solid transparent;
     outline-offset: 3px;
   }
-  28% {
-    outline: 4px solid var(--guide-pulse-color, var(--vermilion));
+  17%,
+  51% {
+    outline: var(--guide-pulse-width) solid
+      var(--guide-pulse-color, var(--vermilion));
     outline-offset: 6px;
   }
 }
@@ -213,7 +219,8 @@
 @media (prefers-reduced-motion: reduce) {
   .booking-guide-pulse {
     animation: none;
-    outline: 3px solid var(--guide-pulse-color, var(--vermilion));
+    outline: var(--guide-pulse-width) solid
+      var(--guide-pulse-color, var(--vermilion));
     outline-offset: 4px;
   }
 }

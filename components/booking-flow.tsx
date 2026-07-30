@@ -262,7 +262,7 @@ export function BookingFlow({
         guideHighlightTimerRef.current = window.setTimeout(() => {
           setGuidedStep(null)
           guideHighlightTimerRef.current = null
-        }, 1400)
+        }, 1900)
       })
     })
   }
@@ -328,7 +328,7 @@ export function BookingFlow({
             guideHighlightTimerRef.current = window.setTimeout(() => {
               setGuidedStep(null)
               guideHighlightTimerRef.current = null
-            }, 1400)
+            }, 1900)
           }
         })
       })
