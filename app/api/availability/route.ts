@@ -21,9 +21,11 @@ export async function GET() {
       (date) => {
         const daySlots = candidates.filter((slot) => slot.date === date)
         return {
+          availableTimes: daySlots
+            .filter((slot) => availableIds.has(slot.id))
+            .map((slot) => slot.start.slice(11, 16)),
           date,
-          slots: daySlots.filter((slot) => availableIds.has(slot.id)),
-          totalSlots: daySlots.length,
+          totalSegments: daySlots.length,
         }
       }
     )

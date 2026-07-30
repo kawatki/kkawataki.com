@@ -276,6 +276,11 @@ export async function acquireSlot(
   expiresAt: number,
   holdToken: string
 ) {
+  const [available] = await listAvailableSlots([slot])
+  if (!available) {
+    throw new SlotUnavailableError()
+  }
+
   const existing = await getEvent(slot.id)
   const body = holdBody(slot, request, expiresAt, holdToken)
 
@@ -396,6 +401,34 @@ export async function confirmPaidBooking(input: {
   }
   if (properties.bookingState === "confirmed") {
     return { confirmed: true as const }
+  }
+
+  const eventStart = event.start?.dateTime
+  const eventEnd = event.end?.dateTime
+  if (!eventStart || !eventEnd) {
+    throw new Error("The calendar hold has invalid times.")
+  }
+
+  const overlapping = await googleRequest<GoogleEventList>(
+    calendarUrl("", {
+      maxResults: "250",
+      orderBy: "startTime",
+      showDeleted: "false",
+      singleEvents: "true",
+      timeMax: eventEnd,
+      timeMin: eventStart,
+      timeZone: BOOKING_TIME_ZONE,
+    })
+  )
+  const hasConflict = (overlapping?.items ?? []).some((candidate) => {
+    if (candidate.id === input.eventId || candidate.status === "cancelled") {
+      return false
+    }
+    const candidateProperties = bookingProperties(candidate)
+    return candidateProperties.bookingState !== "hold"
+  })
+  if (hasConflict) {
+    return { conflict: true as const }
   }
 
   const markedPaid = await patchPrivateProperties(

@@ -1,10 +1,9 @@
 import {
   CHECKOUT_HOLD_MINUTES,
-  DEPOSIT_AMOUNT_JPY,
   DEPOSIT_TERMS_VERSION,
-  findCandidateSlot,
   getBookingPricing,
   parseBookingRequest,
+  validateRequestedSlot,
 } from "@/lib/booking"
 import {
   acquireSlot,
@@ -33,14 +32,12 @@ export async function POST(request: Request) {
 
   try {
     const booking = parseBookingRequest(await request.json())
-    const pricing = getBookingPricing()
-    const slot = findCandidateSlot(booking.slotId)
-    if (!slot) {
-      return Response.json(
-        { error: "That time is no longer available. Please choose another slot." },
-        { status: 409 }
-      )
-    }
+    const slot = validateRequestedSlot(
+      booking.date,
+      booking.startTime,
+      booking.endTime
+    )
+    const pricing = getBookingPricing(slot.durationMinutes)
     slotId = slot.id
     holdToken = crypto.randomUUID()
 
@@ -58,7 +55,7 @@ export async function POST(request: Request) {
       customer_email: booking.email,
       custom_text: {
         submit: {
-          message: `Service rate: ¥${pricing.rateJpyPer30Minutes.toLocaleString("en-US")} per 30 minutes (¥${pricing.serviceTotalJpy.toLocaleString("en-US")} for ${pricing.durationHours} hours). The ¥${DEPOSIT_AMOUNT_JPY.toLocaleString("en-US")} deposit is non-refundable if you cancel or do not attend, and is deducted from the final amount. You also cover transportation and any food or drinks during our time together.`,
+          message: `Service rate: ¥${pricing.rateJpyPer30Minutes.toLocaleString("en-US")} per 30 minutes (¥${pricing.serviceTotalJpy.toLocaleString("en-US")} for ${pricing.durationHours} hours). The 25% deposit of ¥${pricing.depositAmountJpy.toLocaleString("en-US")} is non-refundable if you cancel or do not attend, and is deducted from the final amount. You also cover transportation and any food or drinks during our time together.`,
         },
       },
       expires_at: expiresAt,
@@ -70,7 +67,7 @@ export async function POST(request: Request) {
               description: "Applied to the final amount paid in person.",
               name: "Rental Japanese Guy booking deposit",
             },
-            unit_amount: DEPOSIT_AMOUNT_JPY,
+            unit_amount: pricing.depositAmountJpy,
           },
           quantity: 1,
         },
@@ -81,6 +78,9 @@ export async function POST(request: Request) {
         booking_title: booking.title,
         customer_name: booking.name,
         balance_due_jpy: String(pricing.balanceDueJpy),
+        booking_duration_minutes: String(slot.durationMinutes),
+        deposit_amount_jpy: String(pricing.depositAmountJpy),
+        deposit_percent: String(pricing.depositPercent),
         deposit_terms_accepted: "true",
         deposit_terms_version: DEPOSIT_TERMS_VERSION,
         rate_jpy_per_30_minutes: String(pricing.rateJpyPer30Minutes),
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       },
       mode: "payment",
       payment_intent_data: {
-        description: `Rental Japanese Guy deposit — ${slot.date}`,
+        description: `Rental Japanese Guy deposit — ${slot.label}`,
         metadata: {
           booking_event_id: slot.id,
           slot_start: slot.start,
@@ -138,6 +138,13 @@ export async function POST(request: Request) {
       return Response.json({ error: error.message }, { status: 400 })
     }
     if (error instanceof Error && error.message.startsWith("Please")) {
+      return Response.json({ error: error.message }, { status: 400 })
+    }
+    if (
+      error instanceof Error &&
+      (error.message.startsWith("Choose") ||
+        error.message.startsWith("That time is outside"))
+    ) {
       return Response.json({ error: error.message }, { status: 400 })
     }
 

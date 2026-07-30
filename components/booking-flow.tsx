@@ -17,13 +17,13 @@ import {
   X,
 } from "lucide-react"
 
-import type { BookingPricing, BookingSlot } from "@/lib/booking"
+import type { BookingPricing } from "@/lib/booking"
 import { cn } from "@/lib/utils"
 
 type AvailabilityDay = {
+  availableTimes: string[]
   date: string
-  slots: BookingSlot[]
-  totalSlots?: number
+  totalSegments: number
 }
 
 type AvailabilityResponse = {
@@ -34,6 +34,54 @@ type AvailabilityResponse = {
 
 function yen(amount: number) {
   return `¥${amount.toLocaleString("en-US")}`
+}
+
+function timeToMinutes(time: string) {
+  const [hours, minutes] = time.split(":").map(Number)
+  return hours * 60 + minutes
+}
+
+function minutesToTime(minutes: number) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(
+    minutes % 60
+  ).padStart(2, "0")}`
+}
+
+function displayTime(time: string) {
+  return new Intl.DateTimeFormat("en", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Tokyo",
+  }).format(new Date(`2026-01-01T${time}:00+09:00`))
+}
+
+function endOptions(
+  day: AvailabilityDay,
+  startTime: string,
+  pricing: BookingPricing
+) {
+  if (!startTime) return []
+
+  const available = new Set(day.availableTimes)
+  const start = timeToMinutes(startTime)
+  const options: string[] = []
+
+  for (
+    let end = start + pricing.bookingIncrementMinutes;
+    available.has(minutesToTime(end - pricing.bookingIncrementMinutes));
+    end += pricing.bookingIncrementMinutes
+  ) {
+    if (end - start >= pricing.minimumDurationMinutes) {
+      options.push(minutesToTime(end))
+    }
+  }
+  return options
+}
+
+function startOptions(day: AvailabilityDay, pricing: BookingPricing) {
+  return day.availableTimes.filter(
+    (startTime) => endOptions(day, startTime, pricing).length > 0
+  )
 }
 
 function displayDate(date: string, options: Intl.DateTimeFormatOptions) {
@@ -78,7 +126,8 @@ export function BookingFlow({
   const [days, setDays] = useState<AvailabilityDay[]>([])
   const [visibleMonth, setVisibleMonth] = useState("")
   const [selectedDate, setSelectedDate] = useState("")
-  const [selectedSlot, setSelectedSlot] = useState("")
+  const [selectedStart, setSelectedStart] = useState("")
+  const [selectedEnd, setSelectedEnd] = useState("")
   const [pricing, setPricing] = useState<BookingPricing | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -100,19 +149,18 @@ export function BookingFlow({
 
       setDays(result.days)
       setPricing(result.pricing)
-      setSelectedSlot((current) =>
-        result.days?.some((day) =>
-          day.slots.some((slot) => slot.id === current)
-        )
-          ? current
-          : ""
+      setSelectedStart("")
+      setSelectedEnd("")
+      const firstAvailable = result.days.find(
+        (day) => startOptions(day, result.pricing!).length
       )
-      const firstAvailable = result.days.find((day) => day.slots.length)
       setSelectedDate((current) =>
         !current
           ? (firstAvailable?.date ?? "")
           : result.days?.some(
-                (day) => day.date === current && day.slots.length
+                (day) =>
+                  day.date === current &&
+                  startOptions(day, result.pricing!).length
               )
             ? current
             : ""
@@ -158,6 +206,33 @@ export function BookingFlow({
     () => (visibleMonth ? calendarDates(visibleMonth) : []),
     [visibleMonth]
   )
+  const activeStartOptions =
+    activeDay && pricing ? startOptions(activeDay, pricing) : []
+  const activeEndOptions =
+    activeDay && pricing
+      ? endOptions(activeDay, selectedStart, pricing)
+      : []
+  const selectedPricing = useMemo(() => {
+    if (!pricing || !selectedStart || !selectedEnd) return null
+
+    const durationMinutes =
+      timeToMinutes(selectedEnd) - timeToMinutes(selectedStart)
+    if (durationMinutes < pricing.minimumDurationMinutes) return null
+
+    const serviceTotalJpy =
+      pricing.rateJpyPer30Minutes *
+      (durationMinutes / pricing.bookingIncrementMinutes)
+    const depositAmountJpy = Math.ceil(
+      (serviceTotalJpy * pricing.depositPercent) / 100
+    )
+    return {
+      ...pricing,
+      balanceDueJpy: serviceTotalJpy - depositAmountJpy,
+      depositAmountJpy,
+      durationHours: durationMinutes / 60,
+      serviceTotalJpy,
+    }
+  }, [pricing, selectedEnd, selectedStart])
 
   function navigateMonth(direction: -1 | 1) {
     const nextMonth = months[visibleMonthIndex + direction]
@@ -166,10 +241,14 @@ export function BookingFlow({
     setVisibleMonth(nextMonth)
     setSelectedDate(
       days.find(
-        (day) => day.date.startsWith(nextMonth) && day.slots.length
+        (day) =>
+          day.date.startsWith(nextMonth) &&
+          pricing &&
+          startOptions(day, pricing).length
       )?.date ?? ""
     )
-    setSelectedSlot("")
+    setSelectedStart("")
+    setSelectedEnd("")
   }
 
   function requestCheckout(event: React.FormEvent<HTMLFormElement>) {
@@ -180,7 +259,11 @@ export function BookingFlow({
   }
 
   async function startCheckout() {
-    if (!depositTermsAccepted || !formRef.current || !pricing) return
+    if (
+      !depositTermsAccepted ||
+      !formRef.current ||
+      !selectedPricing
+    ) return
 
     setError("")
     setSubmitting(true)
@@ -192,9 +275,11 @@ export function BookingFlow({
         body: JSON.stringify({
           depositTermsAccepted: true,
           email: form.get("email"),
+          endTime: selectedEnd,
           name: form.get("name"),
           notes: form.get("notes"),
-          slotId: selectedSlot,
+          date: selectedDate,
+          startTime: selectedStart,
           title: form.get("title"),
         }),
         headers: { "content-type": "application/json" },
@@ -213,7 +298,8 @@ export function BookingFlow({
           : "Checkout could not be started."
 
       if (shouldRefreshAvailability) {
-        setSelectedSlot("")
+        setSelectedStart("")
+        setSelectedEnd("")
         await loadAvailability()
       }
 
@@ -310,8 +396,21 @@ export function BookingFlow({
                   )
                 }
 
-                const available = day.slots.length
-                const booked = Math.max((day.totalSlots ?? 3) - available, 0)
+                const available =
+                  pricing ? startOptions(day, pricing).length : 0
+                const minimumSegments = pricing
+                  ? pricing.minimumDurationMinutes /
+                    pricing.bookingIncrementMinutes
+                  : 8
+                const booked = Math.min(
+                  3,
+                  Math.ceil(
+                    Math.max(
+                      day.totalSegments - day.availableTimes.length,
+                      0
+                    ) / minimumSegments
+                  )
+                )
                 const selected = selectedDate === day.date
                 return (
                   <button
@@ -320,14 +419,19 @@ export function BookingFlow({
                     disabled={!available}
                     onClick={() => {
                       setSelectedDate(day.date)
-                      setSelectedSlot("")
+                      setSelectedStart("")
+                      setSelectedEnd("")
                     }}
                     title={`${displayDate(day.date, {
                       dateStyle: "long",
                     })}: ${
                       available
-                        ? `${booked} booked, ${available} available`
-                        : "fully booked"
+                        ? booked === 0
+                          ? "open"
+                          : booked === 1
+                            ? "some time booked"
+                            : "limited availability"
+                        : "no four-hour range available"
                     }`}
                     className={cn(
                       "aspect-square rounded-lg border text-sm font-semibold transition",
@@ -352,13 +456,13 @@ export function BookingFlow({
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink/45">
               <span className="inline-flex items-center gap-2">
-                <span className="size-3 rounded-sm bg-[#286557]" /> 0 booked
+                <span className="size-3 rounded-sm bg-[#286557]" /> Open
               </span>
               <span className="inline-flex items-center gap-2">
-                <span className="size-3 rounded-sm bg-[#c8843e]" /> 1 booked
+                <span className="size-3 rounded-sm bg-[#c8843e]" /> Some booked
               </span>
               <span className="inline-flex items-center gap-2">
-                <span className="size-3 rounded-sm bg-[#e3b94f]" /> 2 booked
+                <span className="size-3 rounded-sm bg-[#e3b94f]" /> Limited
               </span>
               <span className="inline-flex items-center gap-2">
                 <span className="size-3 rounded-sm bg-[#c95843]" /> Full
@@ -371,7 +475,7 @@ export function BookingFlow({
 
             {activeDay && (
               <div className="mt-8 border-t border-ink/10 pt-6">
-                <p className="eyebrow">2 · Choose a four-hour time</p>
+                <p className="eyebrow">2 · Choose your time range</p>
                 <h3 className="mt-2 font-display text-2xl">
                   {displayDate(activeDay.date, {
                     day: "numeric",
@@ -379,28 +483,71 @@ export function BookingFlow({
                     weekday: "long",
                   })}
                 </h3>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  {activeDay.slots.map((slot) => (
-                    <button
-                      key={slot.id}
-                      type="button"
-                      onClick={() => setSelectedSlot(slot.id)}
-                      className={cn(
-                        "flex min-h-12 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition",
-                        selectedSlot === slot.id
-                          ? "border-vermilion bg-vermilion text-white"
-                          : "border-ink/15 bg-paper hover:border-jade hover:bg-jade/5"
-                      )}
-                    >
-                      {selectedSlot === slot.id ? (
-                        <Check className="size-4" />
-                      ) : (
-                        <Clock3 className="size-4" />
-                      )}
-                      {slot.label}
-                    </button>
-                  ))}
+                <p className="mt-2 text-sm leading-6 text-ink/55">
+                  Choose at least four hours, in 30-minute increments.
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/45">
+                    Start
+                    <span className="relative">
+                      <Clock3 className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-ink/45" />
+                      <select
+                        value={selectedStart}
+                        onChange={(event) => {
+                          const nextStart = event.target.value
+                          setSelectedStart(nextStart)
+                          setSelectedEnd(
+                            nextStart && pricing
+                              ? (endOptions(
+                                  activeDay,
+                                  nextStart,
+                                  pricing
+                                )[0] ?? "")
+                              : ""
+                          )
+                        }}
+                        className="h-13 w-full appearance-none rounded-xl border border-ink/15 bg-paper pl-11 pr-4 text-sm font-semibold text-ink outline-none transition focus:border-jade"
+                      >
+                        <option value="">Select start</option>
+                        {activeStartOptions.map((time) => (
+                          <option key={time} value={time}>
+                            {displayTime(time)}
+                          </option>
+                        ))}
+                      </select>
+                    </span>
+                  </label>
+                  <label className="grid gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/45">
+                    End
+                    <span className="relative">
+                      <Clock3 className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-ink/45" />
+                      <select
+                        value={selectedEnd}
+                        onChange={(event) => setSelectedEnd(event.target.value)}
+                        disabled={!selectedStart}
+                        className="h-13 w-full appearance-none rounded-xl border border-ink/15 bg-paper pl-11 pr-4 text-sm font-semibold text-ink outline-none transition focus:border-jade disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <option value="">Select end</option>
+                        {activeEndOptions.map((time) => (
+                          <option key={time} value={time}>
+                            {displayTime(time)}
+                          </option>
+                        ))}
+                      </select>
+                    </span>
+                  </label>
                 </div>
+                {selectedPricing && (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-cream px-4 py-3 text-sm">
+                    <span className="text-ink/60">
+                      {selectedPricing.durationHours} hours ·{" "}
+                      {yen(selectedPricing.serviceTotalJpy)} total
+                    </span>
+                    <span className="font-semibold text-vermilion">
+                      {yen(selectedPricing.depositAmountJpy)} deposit
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -422,9 +569,8 @@ export function BookingFlow({
         <p className="eyebrow text-paper/50">3 · Tell me your plan</p>
         <h2 className="mt-3 font-display text-4xl">Secure your time.</h2>
         <p className="mt-3 text-sm leading-6 text-paper/60">
-          Your slot is confirmed only after Stripe accepts the{" "}
-          {yen(pricing?.depositAmountJpy ?? 2_000)} deposit. The deposit is
-          deducted from the amount paid in person.
+          Your slot is confirmed only after Stripe accepts the 25% deposit.
+          The exact amount updates with the time range you choose.
         </p>
 
         <div className="mt-7 grid gap-5">
@@ -482,7 +628,7 @@ export function BookingFlow({
 
         <button
           type="submit"
-          disabled={!selectedSlot || submitting || loading}
+          disabled={!selectedPricing || submitting || loading}
           className="mt-7 flex h-13 w-full items-center justify-center gap-2 rounded-full bg-vermilion px-6 font-semibold text-white transition hover:bg-vermilion/90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {submitting ? (
@@ -492,7 +638,9 @@ export function BookingFlow({
             </>
           ) : (
             <>
-              Pay ¥2,000 deposit
+              {selectedPricing
+                ? `Pay ${yen(selectedPricing.depositAmountJpy)} deposit`
+                : "Choose a time range"}
               <ArrowRight className="size-4" />
             </>
           )}
@@ -535,13 +683,13 @@ export function BookingFlow({
                   Before you pay
                 </AlertDialog.Title>
                 <AlertDialog.Description className="mt-4 text-sm leading-6 text-ink/65">
-                  Here is a concrete example of what you will pay. Please check
+                  Here is the exact price for your selected time. Please check
                   it before continuing to Stripe.
                 </AlertDialog.Description>
 
                 <div className="mt-6 rounded-2xl border border-vermilion/20 bg-vermilion/[0.06] p-5">
                   <p className="font-semibold">
-                    The {yen(pricing?.depositAmountJpy ?? 2_000)} deposit is
+                    The {yen(selectedPricing?.depositAmountJpy ?? 0)} deposit is
                     non-refundable.
                   </p>
                   <p className="mt-2 text-sm leading-6 text-ink/65">
@@ -551,31 +699,33 @@ export function BookingFlow({
                   </p>
                 </div>
 
-                {pricing && (
+                {selectedPricing && (
                   <div className="mt-5 rounded-2xl border border-ink/10 bg-white p-5">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink/45">
-                      Example · {pricing.durationHours}-hour booking
+                      Your booking · {selectedPricing.durationHours} hours
                     </p>
                     <dl className="mt-4 grid gap-3 text-sm">
                       <div className="flex items-center justify-between gap-4">
                         <dt className="text-ink/60">
-                          {yen(pricing.rateJpyPer30Minutes)} ×{" "}
-                          {pricing.durationHours * 2} half-hours
+                          {yen(selectedPricing.rateJpyPer30Minutes)} ×{" "}
+                          {selectedPricing.durationHours * 2} half-hours
                         </dt>
                         <dd className="font-semibold">
-                          {yen(pricing.serviceTotalJpy)}
+                          {yen(selectedPricing.serviceTotalJpy)}
                         </dd>
                       </div>
                       <div className="flex items-center justify-between gap-4">
-                        <dt className="text-ink/60">Deposit paid now</dt>
+                        <dt className="text-ink/60">
+                          25% deposit paid now
+                        </dt>
                         <dd className="font-semibold">
-                          − {yen(pricing.depositAmountJpy)}
+                          − {yen(selectedPricing.depositAmountJpy)}
                         </dd>
                       </div>
                       <div className="flex items-center justify-between gap-4 border-t border-ink/10 pt-3">
                         <dt className="font-semibold">Pay in person</dt>
                         <dd className="font-semibold text-vermilion">
-                          {yen(pricing.balanceDueJpy)}
+                          {yen(selectedPricing.balanceDueJpy)}
                         </dd>
                       </div>
                     </dl>
@@ -620,7 +770,11 @@ export function BookingFlow({
                   </AlertDialog.Close>
                   <button
                     type="button"
-                    disabled={!depositTermsAccepted || !selectedSlot || submitting}
+                    disabled={
+                      !depositTermsAccepted ||
+                      !selectedPricing ||
+                      submitting
+                    }
                     onClick={() => void startCheckout()}
                     className="flex h-12 items-center justify-center gap-2 rounded-full bg-vermilion px-5 text-sm font-semibold text-white transition hover:bg-vermilion/90 disabled:cursor-not-allowed disabled:opacity-40"
                   >

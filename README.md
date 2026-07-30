@@ -4,9 +4,11 @@ A Next.js booking site with a payment-gated Google Calendar workflow.
 
 ## Booking flow
 
-1. The customer chooses a live four-hour slot and submits their request.
+1. The customer chooses a live start and end time in 30-minute increments, with
+   a four-hour minimum, and submits their request.
 2. The server creates a temporary private hold in Google Calendar.
-3. Stripe Checkout collects a ¥2,000 deposit.
+3. Stripe Checkout collects a non-refundable deposit equal to 25% of the
+   service total.
 4. A signed Stripe webhook changes the hold into a confirmed calendar event.
 5. If an old Checkout Session pays after its hold was replaced, the deposit is
    automatically refunded instead of creating a conflicting booking.

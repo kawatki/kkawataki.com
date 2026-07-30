@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     template: "%s · Rental Japanese Guy",
   },
   description:
-    "Book a Japanese local for a relaxed half-day shaped around what you want to see, eat, learn, or talk about in Tokyo.",
+    "Book a Japanese local in Tokyo for four hours or longer, shaped around what you want to see, eat, learn, or talk about.",
   openGraph: {
     title: "Rental Japanese Guy",
     description: "Tokyo, without the tourist script.",

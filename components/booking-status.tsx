@@ -51,8 +51,8 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
         <p className="eyebrow mt-7">Payment received</p>
         <h1 className="mt-4 font-display text-5xl sm:text-7xl">You’re booked.</h1>
         <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-ink/65">
-          Your four-hour appointment is now in the calendar. Stripe will send
-          the payment receipt to the email address you provided.
+          Your appointment is now in the calendar. Stripe will send the payment
+          receipt to the email address you provided.
         </p>
       </div>
     )

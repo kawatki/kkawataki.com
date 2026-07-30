@@ -34,7 +34,7 @@ const steps = [
   {
     number: "01",
     title: "Pick a time",
-    copy: "Choose an available four-hour window in the live booking calendar.",
+    copy: "Choose your own start and end time, with a four-hour minimum.",
   },
   {
     number: "02",
@@ -64,8 +64,8 @@ export default function HomePage() {
               tourist script.
             </h1>
             <p className="mt-8 max-w-xl text-lg leading-8 text-ink/70 sm:text-xl">
-              Book a Japanese local for a relaxed half-day shaped around what
-              you actually want to see, eat, learn, or talk about.
+              Book a Japanese local for four hours or longer, shaped around
+              what you actually want to see, eat, learn, or talk about.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link
@@ -95,15 +95,15 @@ export default function HomePage() {
             <div className="relative overflow-hidden rounded-[2rem] bg-ink p-7 text-paper shadow-2xl shadow-ink/15 sm:p-9">
               <div className="flex items-center justify-between border-b border-paper/15 pb-6">
                 <span className="text-xs font-semibold uppercase tracking-[0.2em] text-paper/60">
-                  Half-day booking
+                  Flexible booking
                 </span>
                 <span className="flex size-10 items-center justify-center rounded-full bg-vermilion">
                   <CalendarCheck className="size-5" />
                 </span>
               </div>
-              <p className="mt-8 font-display text-5xl leading-none">4 hours</p>
+              <p className="mt-8 font-display text-5xl leading-none">4+ hours</p>
               <p className="mt-3 text-sm leading-6 text-paper/65">
-                Morning, afternoon, and evening options when available.
+                Choose your own start and end time when available.
               </p>
 
               <div className="mt-10 grid grid-cols-7 gap-2" aria-hidden="true">

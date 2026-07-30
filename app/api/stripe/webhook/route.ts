@@ -1,6 +1,6 @@
 import type Stripe from "stripe"
 
-import { DEPOSIT_AMOUNT_JPY } from "@/lib/booking"
+import { getBookingPricing } from "@/lib/booking"
 import { confirmPaidBooking } from "@/lib/google-calendar"
 import { requiredEnv } from "@/lib/server-config"
 import { getStripe, getStripeCryptoProvider } from "@/lib/stripe"
@@ -25,15 +25,26 @@ async function refundConflictingPayment(session: Stripe.Checkout.Session) {
 }
 
 async function fulfillCheckout(session: Stripe.Checkout.Session) {
-  if (
-    session.payment_status !== "paid" ||
-    session.amount_total !== DEPOSIT_AMOUNT_JPY ||
-    session.currency !== "jpy"
-  ) {
+  if (session.payment_status !== "paid") {
     return
   }
 
   const metadata = session.metadata ?? {}
+  const hasVariablePricing = Boolean(metadata.booking_duration_minutes)
+  const durationMinutes = Number(
+    metadata.booking_duration_minutes ?? 4 * 60
+  )
+  const pricing = getBookingPricing(durationMinutes)
+  if (
+    session.amount_total !== pricing.depositAmountJpy ||
+    session.currency !== "jpy" ||
+    (hasVariablePricing &&
+      (metadata.deposit_amount_jpy !== String(pricing.depositAmountJpy) ||
+        metadata.service_total_jpy !== String(pricing.serviceTotalJpy)))
+  ) {
+    throw new Error("Paid Checkout Session has invalid pricing metadata.")
+  }
+
   const email = session.customer_details?.email ?? session.customer_email
   const eventId = metadata.booking_event_id
 

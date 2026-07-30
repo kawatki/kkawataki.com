@@ -6,12 +6,12 @@ import { BookingFlow } from "@/components/booking-flow"
 export const metadata: Metadata = {
   title: "Book",
   description:
-    "Choose an available four-hour time and secure your Rental Japanese Guy booking.",
+    "Choose an available time range and secure your Rental Japanese Guy booking.",
 }
 
 const bookingFacts = [
-  { icon: Clock3, label: "Duration", value: "4 hours" },
-  { icon: CreditCard, label: "To reserve", value: "Small deposit" },
+  { icon: Clock3, label: "Duration", value: "4-hour minimum" },
+  { icon: CreditCard, label: "To reserve", value: "25% deposit" },
   { icon: CalendarCheck, label: "Confirmation", value: "After payment" },
 ]
 
@@ -61,10 +61,10 @@ export default async function BookingPage({
           <div>
             <h2 className="font-display text-2xl">Before you book</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-paper/65">
-              The deposit reserves your time and is deducted from the final
-              amount. The remaining balance is paid in person. Before Stripe
-              opens, you must review and accept the non-refundable deposit
-              policy.
+              The 25% deposit reserves your time and is deducted from the final
+              amount. Longer bookings have a proportionally larger deposit.
+              The remaining balance is paid in person. Before Stripe opens, you
+              must review and accept the non-refundable deposit policy.
             </p>
           </div>
         </div>

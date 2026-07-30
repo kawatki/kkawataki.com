@@ -1,16 +1,19 @@
 export const BOOKING_TIME_ZONE = "Asia/Tokyo"
-export const BOOKING_DURATION_HOURS = 4
-export const DEPOSIT_AMOUNT_JPY = 2_000
-export const DEPOSIT_TERMS_VERSION = "2026-07-30"
+export const BOOKING_INCREMENT_MINUTES = 30
+export const MINIMUM_BOOKING_MINUTES = 4 * 60
+export const DEPOSIT_PERCENT = 25
+export const DEPOSIT_TERMS_VERSION = "2026-07-30-v2"
 export const CHECKOUT_HOLD_MINUTES = 30
 export const MINIMUM_NOTICE_HOURS = 24
 
-const DEFAULT_SLOT_STARTS = ["09:00", "14:00", "19:00"]
+const DEFAULT_DAY_START = "09:00"
+const DEFAULT_DAY_END = "23:00"
 const DEFAULT_RATE_JPY_PER_30_MINUTES = 1_000
 const DEFAULT_BOOKING_MONTHS_AHEAD = 6
 
 export type BookingSlot = {
   date: string
+  durationMinutes: number
   end: string
   id: string
   label: string
@@ -18,34 +21,56 @@ export type BookingSlot = {
 }
 
 export type BookingRequest = {
+  date: string
   depositTermsAccepted: boolean
   email: string
+  endTime: string
   name: string
   notes: string
-  slotId: string
+  startTime: string
   title: string
 }
 
 export type BookingPricing = {
   balanceDueJpy: number
+  bookingIncrementMinutes: number
   depositAmountJpy: number
+  depositPercent: number
   durationHours: number
+  minimumDurationMinutes: number
   rateJpyPer30Minutes: number
   serviceTotalJpy: number
 }
 
-export function getBookingPricing(): BookingPricing {
+export function getBookingPricing(
+  durationMinutes = MINIMUM_BOOKING_MINUTES
+): BookingPricing {
+  if (
+    !Number.isInteger(durationMinutes) ||
+    durationMinutes < MINIMUM_BOOKING_MINUTES ||
+    durationMinutes % BOOKING_INCREMENT_MINUTES !== 0
+  ) {
+    throw new Error("Choose a booking of at least four hours.")
+  }
+
   const configuredRate = Number(process.env.BOOKING_RATE_JPY_PER_30_MINUTES)
   const rateJpyPer30Minutes =
     Number.isInteger(configuredRate) && configuredRate > 0
       ? configuredRate
       : DEFAULT_RATE_JPY_PER_30_MINUTES
-  const serviceTotalJpy = rateJpyPer30Minutes * BOOKING_DURATION_HOURS * 2
+  const serviceTotalJpy =
+    rateJpyPer30Minutes * (durationMinutes / BOOKING_INCREMENT_MINUTES)
+  const depositAmountJpy = Math.ceil(
+    (serviceTotalJpy * DEPOSIT_PERCENT) / 100
+  )
 
   return {
-    balanceDueJpy: Math.max(serviceTotalJpy - DEPOSIT_AMOUNT_JPY, 0),
-    depositAmountJpy: DEPOSIT_AMOUNT_JPY,
-    durationHours: BOOKING_DURATION_HOURS,
+    balanceDueJpy: serviceTotalJpy - depositAmountJpy,
+    bookingIncrementMinutes: BOOKING_INCREMENT_MINUTES,
+    depositAmountJpy,
+    depositPercent: DEPOSIT_PERCENT,
+    durationHours: durationMinutes / 60,
+    minimumDurationMinutes: MINIMUM_BOOKING_MINUTES,
     rateJpyPer30Minutes,
     serviceTotalJpy,
   }
@@ -86,42 +111,119 @@ function bookingWindowEnd(today: string) {
     .slice(0, 10)
 }
 
-function startTimes() {
-  const configured = process.env.BOOKING_SLOT_STARTS?.split(",")
-    .map((time) => time.trim())
-    .filter((time) => /^\d{2}:\d{2}$/.test(time))
-
-  return configured?.length ? configured : DEFAULT_SLOT_STARTS
+export function timeToMinutes(time: string) {
+  if (!/^(?:[01]\d|2[0-3]):(?:00|30)$/u.test(time)) {
+    return Number.NaN
+  }
+  const [hours, minutes] = time.split(":").map(Number)
+  return hours * 60 + minutes
 }
 
-export function slotEventId(start: string) {
-  return `rjg${Math.floor(new Date(start).getTime() / 1_000).toString(16)}`
+function configuredTime(key: "BOOKING_DAY_END" | "BOOKING_DAY_START", fallback: string) {
+  const value = process.env[key]?.trim()
+  return value && Number.isFinite(timeToMinutes(value)) ? value : fallback
 }
 
-export function makeSlot(date: string, startTime: string): BookingSlot {
+export function bookingDayHours() {
+  const start = configuredTime("BOOKING_DAY_START", DEFAULT_DAY_START)
+  const end = configuredTime("BOOKING_DAY_END", DEFAULT_DAY_END)
+  return timeToMinutes(end) > timeToMinutes(start)
+    ? { end, start }
+    : { end: DEFAULT_DAY_END, start: DEFAULT_DAY_START }
+}
+
+function minutesToTime(minutes: number) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(
+    minutes % 60
+  ).padStart(2, "0")}`
+}
+
+function displayTime(value: Date) {
+  return new Intl.DateTimeFormat("en", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: BOOKING_TIME_ZONE,
+  }).format(value)
+}
+
+export function slotEventId(start: string, durationMinutes: number) {
+  const startPart = Math.floor(new Date(start).getTime() / 1_000).toString(16)
+  const durationPart = (durationMinutes / BOOKING_INCREMENT_MINUTES).toString(16)
+  return `rjg${startPart}d${durationPart}`
+}
+
+function createSlot(
+  date: string,
+  startTime: string,
+  endTime: string,
+  durationMinutes: number
+) {
   const start = `${date}T${startTime}:00+09:00`
-  const endDate = new Date(
-    new Date(start).getTime() + BOOKING_DURATION_HOURS * 60 * 60 * 1_000
-  )
-  const end = endDate.toISOString()
-  const startHour = new Intl.DateTimeFormat("en", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: BOOKING_TIME_ZONE,
-  }).format(new Date(start))
-  const endHour = new Intl.DateTimeFormat("en", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: BOOKING_TIME_ZONE,
-  }).format(endDate)
+  const end = `${date}T${endTime}:00+09:00`
+  const parsedStart = new Date(start)
+  const parsedEnd = new Date(end)
+  if (
+    Number.isNaN(parsedStart.getTime()) ||
+    Number.isNaN(parsedEnd.getTime()) ||
+    parsedEnd.getTime() <= parsedStart.getTime()
+  ) {
+    throw new Error("Choose a valid time range of at least four hours.")
+  }
 
   return {
     date,
-    end,
-    id: slotEventId(start),
-    label: `${startHour}–${endHour}`,
+    durationMinutes,
+    end: parsedEnd.toISOString(),
+    id: slotEventId(start, durationMinutes),
+    label: `${displayTime(parsedStart)}–${displayTime(parsedEnd)}`,
     start,
   }
+}
+
+export function makeSlot(
+  date: string,
+  startTime: string,
+  endTime: string
+): BookingSlot {
+  const startMinutes = timeToMinutes(startTime)
+  const endMinutes = timeToMinutes(endTime)
+  const { end: dayEnd, start: dayStart } = bookingDayHours()
+  const durationMinutes = endMinutes - startMinutes
+
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/u.test(date) ||
+    !Number.isFinite(startMinutes) ||
+    !Number.isFinite(endMinutes) ||
+    startMinutes < timeToMinutes(dayStart) ||
+    endMinutes > timeToMinutes(dayEnd) ||
+    durationMinutes < MINIMUM_BOOKING_MINUTES ||
+    durationMinutes % BOOKING_INCREMENT_MINUTES !== 0
+  ) {
+    throw new Error("Choose a valid time range of at least four hours.")
+  }
+
+  return createSlot(date, startTime, endTime, durationMinutes)
+}
+
+export function validateRequestedSlot(
+  date: string,
+  startTime: string,
+  endTime: string,
+  now = new Date()
+) {
+  const slot = makeSlot(date, startTime, endTime)
+  const parts = datePartsInTokyo(now)
+  const today = `${parts.year}-${parts.month}-${parts.day}`
+  const earliest = now.getTime() + MINIMUM_NOTICE_HOURS * 60 * 60 * 1_000
+
+  if (
+    date < today ||
+    date > bookingWindowEnd(today) ||
+    new Date(slot.start).getTime() < earliest
+  ) {
+    throw new Error("That time is outside the booking window.")
+  }
+  return slot
 }
 
 export function generateCandidateSlots(now = new Date()) {
@@ -129,14 +231,25 @@ export function generateCandidateSlots(now = new Date()) {
   const today = `${parts.year}-${parts.month}-${parts.day}`
   const lastDate = bookingWindowEnd(today)
   const earliest = now.getTime() + MINIMUM_NOTICE_HOURS * 60 * 60 * 1_000
+  const { end, start } = bookingDayHours()
+  const endMinutes = timeToMinutes(end)
   const slots: BookingSlot[] = []
 
   for (let day = 0; ; day += 1) {
     const date = addDays(today, day)
     if (date > lastDate) break
 
-    for (const time of startTimes()) {
-      const slot = makeSlot(date, time)
+    for (
+      let minute = timeToMinutes(start);
+      minute + BOOKING_INCREMENT_MINUTES <= endMinutes;
+      minute += BOOKING_INCREMENT_MINUTES
+    ) {
+      const slot = createSlot(
+        date,
+        minutesToTime(minute),
+        minutesToTime(minute + BOOKING_INCREMENT_MINUTES),
+        BOOKING_INCREMENT_MINUTES
+      )
       if (new Date(slot.start).getTime() >= earliest) {
         slots.push(slot)
       }
@@ -144,10 +257,6 @@ export function generateCandidateSlots(now = new Date()) {
   }
 
   return slots
-}
-
-export function findCandidateSlot(slotId: string, now = new Date()) {
-  return generateCandidateSlots(now).find((slot) => slot.id === slotId)
 }
 
 export function parseBookingRequest(value: unknown): BookingRequest {
@@ -160,7 +269,10 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : ""
   const title = typeof input.title === "string" ? input.title.trim() : ""
   const notes = typeof input.notes === "string" ? input.notes.trim() : ""
-  const slotId = typeof input.slotId === "string" ? input.slotId.trim() : ""
+  const date = typeof input.date === "string" ? input.date.trim() : ""
+  const startTime =
+    typeof input.startTime === "string" ? input.startTime.trim() : ""
+  const endTime = typeof input.endTime === "string" ? input.endTime.trim() : ""
   const depositTermsAccepted = input.depositTermsAccepted === true
 
   if (name.length < 2 || name.length > 80) {
@@ -175,12 +287,21 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   if (notes.length > 450) {
     throw new Error("Please keep your note under 450 characters.")
   }
-  if (!slotId) {
-    throw new Error("Choose an available time.")
+  if (!date || !startTime || !endTime) {
+    throw new Error("Choose an available start and end time.")
   }
   if (!depositTermsAccepted) {
     throw new Error("Please agree to the non-refundable deposit policy.")
   }
 
-  return { depositTermsAccepted, email, name, notes, slotId, title }
+  return {
+    date,
+    depositTermsAccepted,
+    email,
+    endTime,
+    name,
+    notes,
+    startTime,
+    title,
+  }
 }
