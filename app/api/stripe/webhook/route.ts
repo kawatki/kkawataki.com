@@ -67,7 +67,10 @@ async function fulfillCheckout(session: Stripe.Checkout.Session) {
     serviceTotalJpy: pricing.serviceTotalJpy,
     socialHandle: metadata.social_handle ?? "",
     socialPlatform:
+      metadata.social_platform === "discord" ||
       metadata.social_platform === "instagram" ||
+      metadata.social_platform === "line" ||
+      metadata.social_platform === "whatsapp" ||
       metadata.social_platform === "x"
         ? metadata.social_platform
         : "none",

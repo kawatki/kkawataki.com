@@ -1,6 +1,10 @@
 import "server-only"
 
-import type { BookingRequest, BookingSlot } from "@/lib/booking"
+import type {
+  BookingRequest,
+  BookingSlot,
+  MessagingPlatform,
+} from "@/lib/booking"
 import {
   bookingTransportBufferMinutes,
   BOOKING_TIME_ZONE,
@@ -427,7 +431,7 @@ export async function confirmPaidBooking(input: {
   sessionId: string
   serviceTotalJpy: number
   socialHandle: string
-  socialPlatform: "instagram" | "none" | "x"
+  socialPlatform: MessagingPlatform
   title: string
 }) {
   const event = await getEvent(input.eventId)
@@ -483,17 +487,17 @@ export async function confirmPaidBooking(input: {
   const inviteCustomer = process.env.GOOGLE_INVITE_CUSTOMERS === "true"
   const yen = (amount: number) => `¥${amount.toLocaleString("en-US")}`
   const halfHours = input.durationHours * 2
+  const contactLabel: Record<Exclude<MessagingPlatform, "none">, string> = {
+    discord: "Discord",
+    instagram: "Instagram",
+    line: "LINE",
+    whatsapp: "WhatsApp",
+    x: "X.com",
+  }
   const contactLines =
-    input.socialPlatform === "instagram"
-      ? [`Instagram: ${input.socialHandle}`]
-      : input.socialPlatform === "x"
-        ? [`X.com: ${input.socialHandle}`]
-        : [
-            "Instagram / X: Not provided",
-            input.alternateContact
-              ? `Other contact: ${input.alternateContact}`
-              : "Other contact: Email only",
-          ]
+    input.socialPlatform === "none"
+      ? ["Messaging app: Email only"]
+      : [`${contactLabel[input.socialPlatform]}: ${input.socialHandle}`]
   const description = [
     properties.bookingReference
       ? [`Booking reference: ${properties.bookingReference}`]

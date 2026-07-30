@@ -19,7 +19,7 @@ import {
   X,
 } from "lucide-react"
 
-import type { BookingPricing } from "@/lib/booking"
+import type { BookingPricing, MessagingPlatform } from "@/lib/booking"
 import { cn } from "@/lib/utils"
 import {
   Tooltip,
@@ -43,6 +43,66 @@ type AvailabilityResponse = {
   pricing?: BookingPricing
   transportBufferMinutes?: number
 }
+
+type CustomerMessagingPlatform = Exclude<MessagingPlatform, "none">
+
+const MESSAGING_FIELDS: Record<
+  CustomerMessagingPlatform,
+  {
+    inputMode?: "tel" | "text"
+    label: string
+    maxLength: number
+    pattern: string
+    placeholder: string
+    prefix?: string
+  }
+> = {
+  discord: {
+    label: "Discord username",
+    maxLength: 33,
+    pattern: "@?[A-Za-z0-9._]{2,32}",
+    placeholder: "username",
+    prefix: "@",
+  },
+  instagram: {
+    label: "Instagram username",
+    maxLength: 31,
+    pattern: "@?[A-Za-z0-9._]{1,30}",
+    placeholder: "username",
+    prefix: "@",
+  },
+  line: {
+    label: "LINE ID",
+    maxLength: 80,
+    pattern: "[A-Za-z0-9._-]{1,80}",
+    placeholder: "your-line-id",
+  },
+  whatsapp: {
+    inputMode: "tel",
+    label: "WhatsApp phone number",
+    maxLength: 30,
+    pattern: "\\+?[0-9 ()-]{7,30}",
+    placeholder: "+81 90 1234 5678",
+  },
+  x: {
+    label: "X username",
+    maxLength: 16,
+    pattern: "@?[A-Za-z0-9_]{1,15}",
+    placeholder: "username",
+    prefix: "@",
+  },
+}
+
+const MESSAGING_OPTIONS: Array<{
+  label: string
+  value: CustomerMessagingPlatform
+}> = [
+  { label: "Instagram", value: "instagram" },
+  { label: "X", value: "x" },
+  { label: "LINE", value: "line" },
+  { label: "WhatsApp", value: "whatsapp" },
+  { label: "Discord", value: "discord" },
+]
 
 function yen(amount: number) {
   return `¥${amount.toLocaleString("en-US")}`
@@ -230,10 +290,10 @@ export function BookingFlow({
   const [checkoutError, setCheckoutError] = useState("")
   const [confirmationOpen, setConfirmationOpen] = useState(false)
   const [depositTermsAccepted, setDepositTermsAccepted] = useState(false)
-  const [socialPlatform, setSocialPlatform] = useState<"instagram" | "x">(
-    "instagram"
-  )
+  const [socialPlatform, setSocialPlatform] =
+    useState<CustomerMessagingPlatform>("instagram")
   const [noSocial, setNoSocial] = useState(false)
+  const messagingField = MESSAGING_FIELDS[socialPlatform]
   const [guidedStep, setGuidedStep] = useState<1 | 2 | 3 | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const calendarSectionRef = useRef<HTMLElement>(null)
@@ -992,17 +1052,20 @@ export function BookingFlow({
                   disabled={noSocial}
                   onChange={(event) =>
                     setSocialPlatform(
-                      event.target.value as "instagram" | "x"
+                      event.target.value as CustomerMessagingPlatform
                     )
                   }
                   className="h-12 w-full appearance-none rounded-xl border border-[#76A99B] bg-paper/10 px-4 pr-11 font-normal text-paper outline-none transition focus:border-[#286557] focus:ring-2 focus:ring-[#79AA9C]/30 disabled:cursor-not-allowed"
                 >
-                  <option value="instagram" className="bg-ink text-paper">
-                    Instagram
-                  </option>
-                  <option value="x" className="bg-ink text-paper">
-                    X
-                  </option>
+                  {MESSAGING_OPTIONS.map((option) => (
+                    <option
+                      key={option.value}
+                      value={option.value}
+                      className="bg-ink text-paper"
+                    >
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown
                   aria-hidden="true"
@@ -1017,30 +1080,35 @@ export function BookingFlow({
                 noSocial && "opacity-35"
               )}
             >
-              Username
+              {messagingField.label}
               <span className="flex h-12 items-center rounded-xl border border-paper/15 bg-paper/10 px-4 transition-colors focus-within:border-[#76A99B]">
-                <span aria-hidden="true" className="font-normal text-paper/55">
-                  @
-                </span>
+                {messagingField.prefix && (
+                  <span
+                    aria-hidden="true"
+                    className="font-normal text-paper/55"
+                  >
+                    {messagingField.prefix}
+                  </span>
+                )}
                 <input
                   name="socialHandle"
                   required={!noSocial}
                   disabled={noSocial}
                   minLength={1}
-                  maxLength={socialPlatform === "instagram" ? 31 : 16}
-                  pattern={
-                    socialPlatform === "instagram"
-                      ? "@?[A-Za-z0-9._]{1,30}"
-                      : "@?[A-Za-z0-9_]{1,15}"
-                  }
+                  maxLength={messagingField.maxLength}
+                  pattern={messagingField.pattern}
+                  inputMode={messagingField.inputMode ?? "text"}
                   autoComplete="off"
-                  className="min-w-0 flex-1 bg-transparent pl-0.5 font-normal text-paper outline-none placeholder:text-paper/30 disabled:cursor-not-allowed"
-                  placeholder="username"
+                  className={cn(
+                    "min-w-0 flex-1 bg-transparent font-normal text-paper outline-none placeholder:text-paper/30 disabled:cursor-not-allowed",
+                    messagingField.prefix && "pl-0.5"
+                  )}
+                  placeholder={messagingField.placeholder}
                 />
               </span>
             </label>
 
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-paper/15 bg-paper/[0.04] p-4 text-sm leading-6">
+            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-paper/15 bg-paper/[0.04] px-3 py-2.5 text-sm">
               <Checkbox.Root
                 checked={noSocial}
                 onCheckedChange={setNoSocial}
@@ -1050,24 +1118,8 @@ export function BookingFlow({
                   <Check className="size-3.5" strokeWidth={3} />
                 </Checkbox.Indicator>
               </Checkbox.Root>
-              <span>I don’t use Instagram or X.</span>
+              <span>Use email only</span>
             </label>
-
-            {noSocial && (
-              <label className="grid gap-2 text-sm font-semibold">
-                Another way to message you{" "}
-                <span className="font-normal text-[#3F806F]">
-                  Strongly recommended
-                </span>
-                <input
-                  name="alternateContact"
-                  maxLength={160}
-                  autoComplete="off"
-                  className="h-12 rounded-xl border border-[#76A99B] bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-[#286557] focus:ring-2 focus:ring-[#79AA9C]/30"
-                  placeholder="LINE ID, WhatsApp, Discord…"
-                />
-              </label>
-            )}
           </fieldset>
           <label className="grid gap-2 text-sm font-semibold">
             What would you like to do?

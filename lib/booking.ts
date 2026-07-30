@@ -21,6 +21,14 @@ export type BookingSlot = {
   start: string
 }
 
+export type MessagingPlatform =
+  | "discord"
+  | "instagram"
+  | "line"
+  | "none"
+  | "whatsapp"
+  | "x"
+
 export type BookingRequest = {
   alternateContact: string
   date: string
@@ -30,7 +38,7 @@ export type BookingRequest = {
   name: string
   notes: string
   socialHandle: string
-  socialPlatform: "instagram" | "none" | "x"
+  socialPlatform: MessagingPlatform
   startTime: string
   title: string
 }
@@ -301,18 +309,31 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   if (noSocial) {
     socialPlatform = "none"
   } else if (
+    input.socialPlatform === "discord" ||
     input.socialPlatform === "instagram" ||
+    input.socialPlatform === "line" ||
+    input.socialPlatform === "whatsapp" ||
     input.socialPlatform === "x"
   ) {
     socialPlatform = input.socialPlatform
   } else {
-    throw new Error("Choose Instagram, X, or the no-social option.")
+    throw new Error("Choose a messaging app or use the email-only option.")
   }
   const rawSocialHandle =
     typeof input.socialHandle === "string" ? input.socialHandle.trim() : ""
-  const username = rawSocialHandle.replace(/^@+/u, "")
+  const usesAtPrefix =
+    socialPlatform === "discord" ||
+    socialPlatform === "instagram" ||
+    socialPlatform === "x"
+  const contactValue = usesAtPrefix
+    ? rawSocialHandle.replace(/^@+/u, "")
+    : rawSocialHandle
   const socialHandle =
-    socialPlatform === "none" || !username ? "" : `@${username}`
+    socialPlatform === "none" || !contactValue
+      ? ""
+      : usesAtPrefix
+        ? `@${contactValue}`
+        : contactValue
   const alternateContact =
     noSocial && typeof input.alternateContact === "string"
       ? input.alternateContact.trim()
@@ -346,6 +367,24 @@ export function parseBookingRequest(value: unknown): BookingRequest {
     !/^@[A-Za-z0-9_]{1,15}$/u.test(socialHandle)
   ) {
     throw new Error("Enter a valid X username.")
+  }
+  if (
+    socialPlatform === "discord" &&
+    !/^@[A-Za-z0-9._]{2,32}$/u.test(socialHandle)
+  ) {
+    throw new Error("Enter a valid Discord username.")
+  }
+  if (
+    socialPlatform === "line" &&
+    !/^[A-Za-z0-9._-]{1,80}$/u.test(socialHandle)
+  ) {
+    throw new Error("Enter a valid LINE ID.")
+  }
+  if (
+    socialPlatform === "whatsapp" &&
+    !/^\+?[0-9 ()-]{7,30}$/u.test(socialHandle)
+  ) {
+    throw new Error("Enter a valid WhatsApp phone number.")
   }
   if (socialPlatform === "none" && rawSocialHandle) {
     throw new Error("Please clear the social username or choose a platform.")
