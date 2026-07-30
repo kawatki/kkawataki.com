@@ -7,7 +7,7 @@ export const MINIMUM_NOTICE_HOURS = 24
 
 const DEFAULT_SLOT_STARTS = ["09:00", "14:00", "19:00"]
 const DEFAULT_RATE_JPY_PER_30_MINUTES = 1_000
-const DEFAULT_BOOKING_MONTHS_AHEAD = 4
+const DEFAULT_BOOKING_MONTHS_AHEAD = 6
 
 export type BookingSlot = {
   date: string
