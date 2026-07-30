@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { AlertDialog } from "@base-ui/react/alert-dialog"
 import { Checkbox } from "@base-ui/react/checkbox"
+import { toast } from "sonner"
 import {
   ArrowRight,
   CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
-  CircleAlert,
   Clock3,
   LoaderCircle,
   LockKeyhole,
@@ -20,11 +20,6 @@ import {
 
 import type { BookingPricing } from "@/lib/booking"
 import { cn } from "@/lib/utils"
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert"
 import {
   Tooltip,
   TooltipContent,
@@ -379,6 +374,21 @@ export function BookingFlow({
     const endTime = minutesToTime(
       timeToMinutes(time) + pricing.bookingIncrementMinutes
     )
+    const attemptedDuration =
+      timeToMinutes(endTime) - timeToMinutes(selectedStart)
+
+    if (
+      attemptedDuration > 0 &&
+      attemptedDuration < pricing.minimumDurationMinutes
+    ) {
+      toast.error("Choose at least 4 hours", {
+        id: "minimum-booking-duration",
+        description: `Your end time must be at least ${pricing.minimumDurationMinutes / 60} hours after ${displayTime(selectedStart)}.`,
+        duration: 3500,
+      })
+      return
+    }
+
     if (activeEndOptions.includes(endTime)) {
       setSelectedEnd(endTime)
     } else if (canStart) {
@@ -617,14 +627,6 @@ export function BookingFlow({
                   {transportBufferMinutes / 60}-hour transportation buffer is
                   automatically kept after every booking.
                 </p>
-                <Alert className="mt-4 border-vermilion/20 bg-vermilion/[0.06] px-4 py-3 text-ink">
-                  <CircleAlert className="text-vermilion" />
-                  <AlertTitle>Minimum booking: 4 hours</AlertTitle>
-                  <AlertDescription className="text-ink/60">
-                    Choose an end time at least four hours after your selected
-                    start time.
-                  </AlertDescription>
-                </Alert>
 
                 <div className="mt-5 rounded-2xl border border-ink/10 bg-cream/60 p-4 sm:p-5">
                   <div className="space-y-5">

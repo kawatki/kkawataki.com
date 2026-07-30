@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
@@ -39,6 +40,14 @@ export default function RootLayout({
           <SiteHeader />
           <main className="flex-1">{children}</main>
           <SiteFooter />
+          <Toaster
+            position="top-center"
+            offset={{ top: 88 }}
+            mobileOffset={{
+              top: "calc(env(safe-area-inset-top, 0px) + 5rem)",
+            }}
+            richColors
+          />
         </TooltipProvider>
       </body>
     </html>
