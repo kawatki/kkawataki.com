@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import Link from "next/link"
 import { Dialog } from "@base-ui/react/dialog"
 import { ArrowUpRight, Menu, X } from "lucide-react"
@@ -16,6 +16,7 @@ const navigation = [
 
 export function SiteHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const touchStartX = useRef<number | null>(null)
 
   return (
     <header className="sticky top-0 z-50 border-b border-ink/10 bg-paper/90 backdrop-blur-xl">
@@ -65,7 +66,23 @@ export function SiteHeader() {
 
           <Dialog.Portal>
             <Dialog.Backdrop className="fixed inset-0 z-[60] min-h-dvh bg-ink/35 backdrop-blur-sm transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0" />
-            <Dialog.Popup className="fixed inset-y-0 right-0 z-[70] flex w-full max-w-sm flex-col overflow-y-auto border-l border-ink/10 bg-paper p-6 shadow-2xl shadow-ink/25 transition-transform duration-300 ease-out data-ending-style:translate-x-full data-starting-style:translate-x-full">
+            <Dialog.Popup
+              onTouchStart={(event) => {
+                touchStartX.current = event.touches[0]?.clientX ?? null
+              }}
+              onTouchEnd={(event) => {
+                const endX = event.changedTouches[0]?.clientX
+                if (
+                  touchStartX.current !== null &&
+                  endX !== undefined &&
+                  endX - touchStartX.current > 72
+                ) {
+                  setMobileMenuOpen(false)
+                }
+                touchStartX.current = null
+              }}
+              className="fixed inset-y-0 right-0 z-[70] flex w-[calc(100%-3.5rem)] max-w-sm touch-pan-y flex-col overflow-y-auto border-l border-ink/10 bg-paper p-6 shadow-2xl shadow-ink/25 transition-transform duration-300 ease-out data-ending-style:translate-x-full data-starting-style:translate-x-full"
+            >
               <Dialog.Title className="sr-only">Navigation menu</Dialog.Title>
 
               <div className="flex items-center justify-between gap-4">
@@ -78,7 +95,7 @@ export function SiteHeader() {
                   <span className="flex size-10 items-center justify-center rounded-full bg-vermilion font-display text-lg text-white">
                     日
                   </span>
-                  <span className="font-display text-xl tracking-tight">
+                  <span className="font-display text-lg tracking-tight">
                     Rental Japanese Guy
                   </span>
                 </Link>
@@ -94,17 +111,14 @@ export function SiteHeader() {
                 className="mt-12 grid border-t border-ink/10"
                 aria-label="Mobile navigation"
               >
-                {navigation.map((item, index) => (
+                {navigation.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="group flex items-center justify-between border-b border-ink/10 py-5 text-2xl font-medium tracking-tight text-ink transition hover:text-vermilion"
+                    className="border-b border-ink/10 py-6 font-display text-4xl leading-none tracking-tight text-ink transition hover:text-vermilion"
                   >
-                    <span>{item.label}</span>
-                    <span className="font-mono text-xs tracking-widest text-ink/35 transition group-hover:text-vermilion">
-                      0{index + 1}
-                    </span>
+                    {item.label}
                   </Link>
                 ))}
               </nav>
