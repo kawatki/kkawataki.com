@@ -1,9 +1,7 @@
 import type { Metadata } from "next"
-import { ArrowUpRight, CalendarCheck, Clock3, CreditCard, Info } from "lucide-react"
+import { CalendarCheck, Clock3, CreditCard, Info } from "lucide-react"
 
-import { buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-import { bookingUrl, hasBookingUrl } from "@/lib/site"
+import { BookingFlow } from "@/components/booking-flow"
 
 export const metadata: Metadata = {
   title: "Book",
@@ -17,7 +15,13 @@ const bookingFacts = [
   { icon: CalendarCheck, label: "Confirmation", value: "After payment" },
 ]
 
-export default function BookingPage() {
+export default async function BookingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ payment?: string }>
+}) {
+  const { payment } = await searchParams
+
   return (
     <>
       <section className="border-b border-ink/10 bg-cream">
@@ -50,53 +54,7 @@ export default function BookingPage() {
       </section>
 
       <section className="page-shell py-10 sm:py-16">
-        {hasBookingUrl ? (
-          <>
-            <div className="overflow-hidden rounded-3xl border border-ink/10 bg-white shadow-xl shadow-ink/5">
-              <iframe
-                src={bookingUrl}
-                title="Rental Japanese Guy booking calendar"
-                className="h-[820px] w-full border-0 sm:h-[900px]"
-                loading="eager"
-              />
-            </div>
-            <div className="mt-5 flex flex-col items-start justify-between gap-3 text-sm text-ink/55 sm:flex-row sm:items-center">
-              <p>Times are shown by Google Calendar in your selected timezone.</p>
-              <a
-                href={bookingUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 font-semibold text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink"
-              >
-                Open in a new window
-                <ArrowUpRight className="size-4" />
-              </a>
-            </div>
-          </>
-        ) : (
-          <div className="flex min-h-[520px] flex-col items-center justify-center rounded-3xl border border-dashed border-ink/20 bg-white px-6 text-center">
-            <span className="flex size-14 items-center justify-center rounded-full bg-vermilion/10 text-vermilion">
-              <CalendarCheck className="size-7" />
-            </span>
-            <h2 className="mt-6 font-display text-4xl">Calendar ready to connect</h2>
-            <p className="mt-3 max-w-md text-sm leading-6 text-ink/60">
-              Add your Google Appointment Schedule URL to the local environment
-              file and the live booking calendar will appear here.
-            </p>
-            <a
-              href="https://calendar.google.com/"
-              target="_blank"
-              rel="noreferrer"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "lg" }),
-                "mt-7 h-11 rounded-full px-5"
-              )}
-            >
-              Open Google Calendar
-              <ArrowUpRight />
-            </a>
-          </div>
-        )}
+        <BookingFlow paymentCancelled={payment === "cancelled"} />
 
         <div className="mt-10 grid gap-6 rounded-2xl bg-ink p-6 text-paper sm:grid-cols-[auto_1fr] sm:p-8">
           <Info className="size-6 text-jade-light" />
