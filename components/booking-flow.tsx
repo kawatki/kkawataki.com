@@ -92,7 +92,7 @@ export function BookingFlow({
     setLoading(true)
     setError("")
     try {
-      const response = await fetch("/api/availability/", { cache: "no-store" })
+      const response = await fetch("/api/availability", { cache: "no-store" })
       const result = (await response.json()) as AvailabilityResponse
       if (!response.ok || !result.days || !result.pricing) {
         throw new Error(result.error ?? "Available times could not be loaded.")
