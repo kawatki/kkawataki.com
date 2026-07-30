@@ -607,13 +607,6 @@ export function BookingFlow({
                                 Boolean(selectedStart) &&
                                 segmentStart >= selectionStart &&
                                 segmentStart < selectionEnd
-                              const isStart =
-                                selected && segmentStart === selectionStart
-                              const isEnd =
-                                selected &&
-                                segmentStart +
-                                  (pricing?.bookingIncrementMinutes ?? 30) ===
-                                  selectionEnd
 
                               return (
                                 <button
@@ -635,32 +628,18 @@ export function BookingFlow({
                                   }`}
                                   className={cn(
                                     "relative h-11 transition first:rounded-l-xl last:rounded-r-xl focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                                    available
-                                      ? "bg-[#286557] hover:bg-[#22584c]"
-                                      : "cursor-not-allowed bg-ink/[0.12]",
+                                    !available &&
+                                      "cursor-not-allowed bg-ink/[0.12]",
+                                    available &&
+                                      !selected &&
+                                      "bg-[#BFD4CE] hover:bg-[#ABC8C0]",
+                                    available &&
+                                      selected &&
+                                      "bg-[#286557] hover:bg-[#22584C]",
                                     index === 0 && "rounded-l-xl",
                                     index === row.length - 1 && "rounded-r-xl"
                                   )}
-                                >
-                                  {selected && (
-                                    <span
-                                      aria-hidden="true"
-                                      className="absolute inset-x-0 bottom-0 h-1 bg-ink"
-                                    />
-                                  )}
-                                  {isStart && (
-                                    <span
-                                      aria-hidden="true"
-                                      className="absolute inset-y-1 left-0 w-1 rounded-full bg-ink"
-                                    />
-                                  )}
-                                  {isEnd && (
-                                    <span
-                                      aria-hidden="true"
-                                      className="absolute inset-y-1 right-0 w-1 rounded-full bg-ink"
-                                    />
-                                  )}
-                                </button>
+                                />
                               )
                             })}
                           </div>
@@ -671,7 +650,7 @@ export function BookingFlow({
 
                   <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink/50">
                     <span className="inline-flex items-center gap-2">
-                      <span className="size-3 rounded-sm bg-[#286557]" />
+                      <span className="size-3 rounded-sm bg-[#BFD4CE]" />
                       Available
                     </span>
                     <span className="inline-flex items-center gap-2">
@@ -679,7 +658,7 @@ export function BookingFlow({
                       Unavailable
                     </span>
                     <span className="inline-flex items-center gap-2">
-                      <span className="h-3 w-4 border-b-2 border-x-2 border-ink" />
+                      <span className="size-3 rounded-sm bg-[#286557]" />
                       Selected
                     </span>
                   </div>
