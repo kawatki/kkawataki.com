@@ -201,6 +201,7 @@ export function BookingFlow({
   )
   const [noSocial, setNoSocial] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
+  const calendarSectionRef = useRef<HTMLElement>(null)
 
   async function loadAvailability() {
     setLoading(true)
@@ -245,6 +246,17 @@ export function BookingFlow({
           ? current
           : (firstAvailable?.date.slice(0, 7) ?? availableMonths[0] ?? "")
       )
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          calendarSectionRef.current?.scrollIntoView({
+            behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+              .matches
+              ? "auto"
+              : "smooth",
+            block: "start",
+          })
+        })
+      })
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -432,7 +444,10 @@ export function BookingFlow({
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
-      <section className="rounded-3xl border border-ink/10 bg-white p-5 shadow-xl shadow-ink/5 sm:p-7">
+      <section
+        ref={calendarSectionRef}
+        className="scroll-mt-24 rounded-3xl border border-ink/10 bg-white p-5 shadow-xl shadow-ink/5 sm:p-7"
+      >
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="eyebrow">1 · Pick a date</p>
