@@ -18,12 +18,14 @@ export async function GET() {
     const slots = await listAvailableSlots(candidates)
     const availableIds = new Set(slots.map((slot) => slot.id))
     const days = Array.from(new Set(candidates.map((slot) => slot.date))).map(
-      (date) => ({
-        date,
-        slots: candidates.filter(
-          (slot) => slot.date === date && availableIds.has(slot.id)
-        ),
-      })
+      (date) => {
+        const daySlots = candidates.filter((slot) => slot.date === date)
+        return {
+          date,
+          slots: daySlots.filter((slot) => availableIds.has(slot.id)),
+          totalSlots: daySlots.length,
+        }
+      }
     )
     return Response.json(
       { days, pricing: getBookingPricing() },

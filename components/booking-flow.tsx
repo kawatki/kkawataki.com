@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils"
 type AvailabilityDay = {
   date: string
   slots: BookingSlot[]
+  totalSlots?: number
 }
 
 type AvailabilityResponse = {
@@ -199,6 +200,7 @@ export function BookingFlow({
             <div className="mt-2 grid grid-cols-7 gap-2">
               {days.map((day) => {
                 const available = day.slots.length
+                const booked = Math.max((day.totalSlots ?? 3) - available, 0)
                 const selected = selectedDate === day.date
                 return (
                   <button
@@ -211,17 +213,24 @@ export function BookingFlow({
                     }}
                     title={`${displayDate(day.date, {
                       dateStyle: "long",
-                    })}: ${available ? `${available} available` : "full"}`}
+                    })}: ${
+                      available
+                        ? `${booked} booked, ${available} available`
+                        : "fully booked"
+                    }`}
                     className={cn(
                       "aspect-square rounded-lg border text-sm font-semibold transition",
                       available === 0 &&
-                        "cursor-not-allowed border-ink/5 bg-ink/[0.035] text-ink/25",
-                      available === 1 &&
-                        "border-jade/20 bg-jade/15 text-jade hover:bg-jade/25",
-                      available === 2 &&
-                        "border-jade/25 bg-jade/30 text-jade hover:bg-jade/40",
-                      available >= 3 &&
-                        "border-jade bg-jade text-white hover:bg-jade/90",
+                        "cursor-not-allowed border-[#c95843] bg-[#c95843] text-white/90",
+                      available > 0 &&
+                        booked === 0 &&
+                        "border-[#286557] bg-[#286557] text-white hover:bg-[#22584c]",
+                      available > 0 &&
+                        booked === 1 &&
+                        "border-[#c8843e] bg-[#c8843e] text-white hover:bg-[#b67434]",
+                      available > 0 &&
+                        booked >= 2 &&
+                        "border-[#d5a93e] bg-[#e3b94f] text-[#332a16] hover:bg-[#d8ad43]",
                       selected && "ring-2 ring-vermilion ring-offset-2"
                     )}
                   >
@@ -232,10 +241,16 @@ export function BookingFlow({
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink/45">
               <span className="inline-flex items-center gap-2">
-                <span className="size-3 rounded-sm bg-jade" /> Available
+                <span className="size-3 rounded-sm bg-[#286557]" /> 0 booked
               </span>
               <span className="inline-flex items-center gap-2">
-                <span className="size-3 rounded-sm bg-ink/5" /> Full
+                <span className="size-3 rounded-sm bg-[#c8843e]" /> 1 booked
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="size-3 rounded-sm bg-[#e3b94f]" /> 2 booked
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="size-3 rounded-sm bg-[#c95843]" /> Full
               </span>
               <span>Times shown in Japan Standard Time</span>
             </div>
