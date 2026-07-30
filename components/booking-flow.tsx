@@ -1,6 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { AlertDialog } from "@base-ui/react/alert-dialog"
+import { Checkbox } from "@base-ui/react/checkbox"
 import {
   ArrowRight,
   CalendarDays,
@@ -9,6 +11,8 @@ import {
   LoaderCircle,
   LockKeyhole,
   RefreshCw,
+  ShieldAlert,
+  X,
 } from "lucide-react"
 
 import type { BookingSlot } from "@/lib/booking"
@@ -42,6 +46,9 @@ export function BookingFlow({
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const [confirmationOpen, setConfirmationOpen] = useState(false)
+  const [depositTermsAccepted, setDepositTermsAccepted] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
 
   async function loadAvailability() {
     setLoading(true)
@@ -81,15 +88,23 @@ export function BookingFlow({
     [days, selectedDate]
   )
 
-  async function startCheckout(event: React.FormEvent<HTMLFormElement>) {
+  function requestCheckout(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setDepositTermsAccepted(false)
+    setConfirmationOpen(true)
+  }
+
+  async function startCheckout() {
+    if (!depositTermsAccepted || !formRef.current) return
+
     setError("")
     setSubmitting(true)
 
-    const form = new FormData(event.currentTarget)
+    const form = new FormData(formRef.current)
     try {
       const response = await fetch("/api/checkout/", {
         body: JSON.stringify({
+          depositTermsAccepted: true,
           email: form.get("email"),
           name: form.get("name"),
           notes: form.get("notes"),
@@ -111,6 +126,7 @@ export function BookingFlow({
           : "Checkout could not be started."
       )
       setSubmitting(false)
+      setConfirmationOpen(false)
       await loadAvailability()
     }
   }
@@ -243,7 +259,8 @@ export function BookingFlow({
       </section>
 
       <form
-        onSubmit={startCheckout}
+        ref={formRef}
+        onSubmit={requestCheckout}
         className="rounded-3xl bg-ink p-6 text-paper shadow-2xl shadow-ink/15 sm:p-8"
       >
         <p className="eyebrow text-paper/50">3 · Tell me your plan</p>
@@ -328,6 +345,95 @@ export function BookingFlow({
           <LockKeyhole className="size-3.5" />
           Card details are handled securely by Stripe
         </p>
+
+        <AlertDialog.Root
+          open={confirmationOpen}
+          onOpenChange={(open) => {
+            if (!submitting) {
+              setConfirmationOpen(open)
+              if (!open) setDepositTermsAccepted(false)
+            }
+          }}
+        >
+          <AlertDialog.Portal>
+            <AlertDialog.Backdrop className="fixed inset-0 z-[100] bg-ink/70 backdrop-blur-sm data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 transition-opacity" />
+            <AlertDialog.Viewport className="fixed inset-0 z-[101] flex items-center justify-center p-4">
+              <AlertDialog.Popup className="relative w-full max-w-lg rounded-3xl border border-ink/10 bg-paper p-6 text-ink shadow-2xl outline-none data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 transition-[transform,opacity] sm:p-8">
+                <AlertDialog.Close
+                  type="button"
+                  disabled={submitting}
+                  aria-label="Close deposit notice"
+                  className="absolute right-5 top-5 flex size-9 items-center justify-center rounded-full text-ink/45 transition hover:bg-ink/5 hover:text-ink disabled:opacity-40"
+                >
+                  <X className="size-4" />
+                </AlertDialog.Close>
+
+                <span className="flex size-12 items-center justify-center rounded-full bg-vermilion/10 text-vermilion">
+                  <ShieldAlert className="size-6" />
+                </span>
+                <AlertDialog.Title className="mt-6 font-display text-4xl leading-none">
+                  Before you pay
+                </AlertDialog.Title>
+                <AlertDialog.Description className="mt-4 text-sm leading-6 text-ink/65">
+                  Please review and accept the deposit policy before continuing
+                  to Stripe.
+                </AlertDialog.Description>
+
+                <div className="mt-6 rounded-2xl border border-vermilion/20 bg-vermilion/[0.06] p-5">
+                  <p className="font-semibold">The ¥2,000 deposit is non-refundable.</p>
+                  <p className="mt-2 text-sm leading-6 text-ink/65">
+                    It will not be refunded if you cancel or do not attend. The
+                    deposit is deducted from the final amount paid in person. If
+                    I cancel the booking, your deposit will be refunded.
+                  </p>
+                </div>
+
+                <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-4 text-sm leading-6 transition hover:bg-white">
+                  <Checkbox.Root
+                    checked={depositTermsAccepted}
+                    onCheckedChange={setDepositTermsAccepted}
+                    className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-ink/30 bg-white text-white outline-none transition data-[checked]:border-vermilion data-[checked]:bg-vermilion focus-visible:ring-2 focus-visible:ring-vermilion/35"
+                  >
+                    <Checkbox.Indicator>
+                      <Check className="size-3.5" strokeWidth={3} />
+                    </Checkbox.Indicator>
+                  </Checkbox.Root>
+                  <span>
+                    I understand and agree to the non-refundable deposit policy.
+                  </span>
+                </label>
+
+                <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                  <AlertDialog.Close
+                    type="button"
+                    disabled={submitting}
+                    className="h-12 rounded-full border border-ink/15 px-5 text-sm font-semibold transition hover:bg-white disabled:opacity-40"
+                  >
+                    Go back
+                  </AlertDialog.Close>
+                  <button
+                    type="button"
+                    disabled={!depositTermsAccepted || submitting}
+                    onClick={() => void startCheckout()}
+                    className="flex h-12 items-center justify-center gap-2 rounded-full bg-vermilion px-5 text-sm font-semibold text-white transition hover:bg-vermilion/90 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {submitting ? (
+                      <>
+                        <LoaderCircle className="size-4 animate-spin" />
+                        Opening Stripe…
+                      </>
+                    ) : (
+                      <>
+                        Agree and continue
+                        <ArrowRight className="size-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </AlertDialog.Popup>
+            </AlertDialog.Viewport>
+          </AlertDialog.Portal>
+        </AlertDialog.Root>
       </form>
     </div>
   )

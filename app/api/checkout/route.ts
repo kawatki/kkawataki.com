@@ -1,6 +1,7 @@
 import {
   CHECKOUT_HOLD_MINUTES,
   DEPOSIT_AMOUNT_JPY,
+  DEPOSIT_TERMS_VERSION,
   findCandidateSlot,
   parseBookingRequest,
 } from "@/lib/booking"
@@ -53,6 +54,12 @@ export async function POST(request: Request) {
     const session = await stripe.checkout.sessions.create({
       cancel_url: `${origin}/booking/?payment=cancelled`,
       customer_email: booking.email,
+      custom_text: {
+        submit: {
+          message:
+            "The ¥2,000 deposit is non-refundable if you cancel or do not attend. It is deducted from the final amount and refunded if the host cancels.",
+        },
+      },
       expires_at: expiresAt,
       line_items: [
         {
@@ -72,6 +79,8 @@ export async function POST(request: Request) {
         booking_notes: booking.notes,
         booking_title: booking.title,
         customer_name: booking.name,
+        deposit_terms_accepted: "true",
+        deposit_terms_version: DEPOSIT_TERMS_VERSION,
         slot_end: slot.end,
         slot_start: slot.start,
       },

@@ -62,8 +62,9 @@ export default async function BookingPage({
             <h2 className="font-display text-2xl">Before you book</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-paper/65">
               The deposit reserves your time and is deducted from the final
-              amount. The remaining balance is paid in person. Cancellation and
-              refund terms are shown before payment.
+              amount. The remaining balance is paid in person. Before Stripe
+              opens, you must review and accept the non-refundable deposit
+              policy.
             </p>
           </div>
         </div>

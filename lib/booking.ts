@@ -1,6 +1,7 @@
 export const BOOKING_TIME_ZONE = "Asia/Tokyo"
 export const BOOKING_DURATION_HOURS = 4
 export const DEPOSIT_AMOUNT_JPY = 2_000
+export const DEPOSIT_TERMS_VERSION = "2026-07-30"
 export const CHECKOUT_HOLD_MINUTES = 30
 export const BOOKING_WINDOW_DAYS = 56
 export const MINIMUM_NOTICE_HOURS = 24
@@ -16,6 +17,7 @@ export type BookingSlot = {
 }
 
 export type BookingRequest = {
+  depositTermsAccepted: boolean
   email: string
   name: string
   notes: string
@@ -115,6 +117,7 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   const title = typeof input.title === "string" ? input.title.trim() : ""
   const notes = typeof input.notes === "string" ? input.notes.trim() : ""
   const slotId = typeof input.slotId === "string" ? input.slotId.trim() : ""
+  const depositTermsAccepted = input.depositTermsAccepted === true
 
   if (name.length < 2 || name.length > 80) {
     throw new Error("Enter your name.")
@@ -131,6 +134,9 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   if (!slotId) {
     throw new Error("Choose an available time.")
   }
+  if (!depositTermsAccepted) {
+    throw new Error("Please agree to the non-refundable deposit policy.")
+  }
 
-  return { email, name, notes, slotId, title }
+  return { depositTermsAccepted, email, name, notes, slotId, title }
 }
