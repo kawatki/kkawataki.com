@@ -195,9 +195,13 @@
   }
 
   .booking-guide-pulse-dark {
-    --guide-pulse-color: #ff765c;
+    --guide-pulse-color: #79aa9c;
     --guide-pulse-width: 5px;
   }
+}
+
+.dark .booking-guide-pulse-dark {
+  --guide-pulse-color: #286557;
 }
 
 @keyframes booking-guide-pulse {

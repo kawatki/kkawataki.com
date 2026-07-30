@@ -8,6 +8,7 @@ import {
   ArrowRight,
   CalendarDays,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -978,25 +979,37 @@ export function BookingFlow({
               as when we’re finding each other.
             </p>
 
-            <div
+            <label
               className={cn(
-                "grid grid-cols-2 gap-2 transition",
+                "grid gap-2 text-sm font-semibold transition",
                 noSocial && "opacity-35"
               )}
             >
-              {(["instagram", "x"] as const).map((platform) => (
-                <button
-                  key={platform}
-                  type="button"
+              Messaging app
+              <span className="relative">
+                <select
+                  value={socialPlatform}
                   disabled={noSocial}
-                  aria-pressed={socialPlatform === platform}
-                  onClick={() => setSocialPlatform(platform)}
-                  className="h-11 rounded-xl border border-paper/15 bg-paper/5 text-sm font-semibold transition hover:bg-paper/10 disabled:cursor-not-allowed aria-pressed:border-jade-light aria-pressed:bg-jade-light aria-pressed:text-ink"
+                  onChange={(event) =>
+                    setSocialPlatform(
+                      event.target.value as "instagram" | "x"
+                    )
+                  }
+                  className="h-12 w-full appearance-none rounded-xl border border-[#76A99B] bg-paper/10 px-4 pr-11 font-normal text-paper outline-none transition focus:border-[#286557] focus:ring-2 focus:ring-[#79AA9C]/30 disabled:cursor-not-allowed"
                 >
-                  {platform === "instagram" ? "Instagram" : "X"}
-                </button>
-              ))}
-            </div>
+                  <option value="instagram" className="bg-ink text-paper">
+                    Instagram
+                  </option>
+                  <option value="x" className="bg-ink text-paper">
+                    X
+                  </option>
+                </select>
+                <ChevronDown
+                  aria-hidden="true"
+                  className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-paper/55"
+                />
+              </span>
+            </label>
 
             <label
               className={cn(
@@ -1005,7 +1018,7 @@ export function BookingFlow({
               )}
             >
               Username
-              <span className="flex h-12 items-center rounded-xl border border-paper/15 bg-paper/10 px-4 transition-colors focus-within:border-jade-light">
+              <span className="flex h-12 items-center rounded-xl border border-paper/15 bg-paper/10 px-4 transition-colors focus-within:border-[#76A99B]">
                 <span aria-hidden="true" className="font-normal text-paper/55">
                   @
                 </span>
@@ -1031,7 +1044,7 @@ export function BookingFlow({
               <Checkbox.Root
                 checked={noSocial}
                 onCheckedChange={setNoSocial}
-                className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-paper/30 bg-paper/10 text-ink outline-none transition data-[checked]:border-jade-light data-[checked]:bg-jade-light focus-visible:ring-2 focus-visible:ring-jade-light/40"
+                className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-paper/30 bg-paper/10 text-white outline-none transition data-[checked]:border-[#286557] data-[checked]:bg-[#286557] focus-visible:ring-2 focus-visible:ring-[#79AA9C]/40"
               >
                 <Checkbox.Indicator>
                   <Check className="size-3.5" strokeWidth={3} />
@@ -1043,14 +1056,14 @@ export function BookingFlow({
             {noSocial && (
               <label className="grid gap-2 text-sm font-semibold">
                 Another way to message you{" "}
-                <span className="font-normal text-jade-light">
+                <span className="font-normal text-[#3F806F]">
                   Strongly recommended
                 </span>
                 <input
                   name="alternateContact"
                   maxLength={160}
                   autoComplete="off"
-                  className="h-12 rounded-xl border border-jade-light/35 bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light"
+                  className="h-12 rounded-xl border border-[#76A99B] bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-[#286557] focus:ring-2 focus:ring-[#79AA9C]/30"
                   placeholder="LINE ID, WhatsApp, Discord…"
                 />
               </label>
