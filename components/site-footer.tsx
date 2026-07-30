@@ -1,14 +1,14 @@
 import Link from "next/link"
 
+import { BrandMark } from "@/components/brand-mark"
+
 export function SiteFooter() {
   return (
     <footer className="border-t border-ink/10 bg-paper">
       <div className="page-shell grid gap-10 py-12 sm:grid-cols-[1fr_auto] sm:items-end">
         <div>
           <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-full bg-vermilion font-display text-lg text-white">
-              日
-            </span>
+            <BrandMark className="size-9" />
             <span className="font-display text-2xl">Rental Japanese Guy</span>
           </div>
           <p className="mt-4 max-w-sm text-sm leading-6 text-ink/55">

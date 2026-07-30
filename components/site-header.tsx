@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Dialog } from "@base-ui/react/dialog"
 import { ArrowUpRight, Menu, X } from "lucide-react"
 
+import { BrandMark } from "@/components/brand-mark"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -23,9 +24,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 border-b border-ink/10 bg-paper/90 backdrop-blur-xl">
       <div className="page-shell flex h-[76px] items-center justify-between gap-4">
         <Link href="/" className="group flex items-center gap-3" aria-label="Rental Japanese Guy home">
-          <span className="flex size-9 items-center justify-center rounded-full bg-vermilion font-display text-lg text-white transition-transform group-hover:-rotate-6">
-            日
-          </span>
+          <BrandMark className="size-9 transition-transform group-hover:-rotate-6" />
           <span className="hidden font-display text-xl tracking-tight sm:block">
             Rental Japanese Guy
           </span>
@@ -95,9 +94,7 @@ export function SiteHeader() {
                     className="group flex items-center gap-3"
                     aria-label="Rental Japanese Guy home"
                   >
-                    <span className="flex size-10 items-center justify-center rounded-full bg-vermilion font-display text-lg text-white">
-                      日
-                    </span>
+                    <BrandMark className="size-10" />
                     <span className="font-display text-lg tracking-tight">
                       Rental Japanese Guy
                     </span>
