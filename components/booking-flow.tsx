@@ -52,6 +52,7 @@ export function BookingFlow({
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const [checkoutError, setCheckoutError] = useState("")
   const [confirmationOpen, setConfirmationOpen] = useState(false)
   const [depositTermsAccepted, setDepositTermsAccepted] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
@@ -68,6 +69,13 @@ export function BookingFlow({
 
       setDays(result.days)
       setPricing(result.pricing)
+      setSelectedSlot((current) =>
+        result.days?.some((day) =>
+          day.slots.some((slot) => slot.id === current)
+        )
+          ? current
+          : ""
+      )
       const firstAvailable = result.days.find((day) => day.slots.length)
       setSelectedDate((current) =>
         result.days?.some((day) => day.date === current && day.slots.length)
@@ -97,6 +105,7 @@ export function BookingFlow({
 
   function requestCheckout(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setCheckoutError("")
     setDepositTermsAccepted(false)
     setConfirmationOpen(true)
   }
@@ -108,6 +117,7 @@ export function BookingFlow({
     setSubmitting(true)
 
     const form = new FormData(formRef.current)
+    let shouldRefreshAvailability = false
     try {
       const response = await fetch("/api/checkout/", {
         body: JSON.stringify({
@@ -123,18 +133,28 @@ export function BookingFlow({
       })
       const result = (await response.json()) as { error?: string; url?: string }
       if (!response.ok || !result.url) {
+        shouldRefreshAvailability = response.status === 409
         throw new Error(result.error ?? "Checkout could not be started.")
       }
       window.location.assign(result.url)
     } catch (checkoutError) {
-      setError(
+      const message =
         checkoutError instanceof Error
           ? checkoutError.message
           : "Checkout could not be started."
+
+      if (shouldRefreshAvailability) {
+        setSelectedSlot("")
+        await loadAvailability()
+      }
+
+      setError(message)
+      setCheckoutError(
+        shouldRefreshAvailability
+          ? `${message} Close this notice and choose another time.`
+          : message
       )
       setSubmitting(false)
-      setConfirmationOpen(false)
-      await loadAvailability()
     }
   }
 
@@ -359,7 +379,10 @@ export function BookingFlow({
           onOpenChange={(open) => {
             if (!submitting) {
               setConfirmationOpen(open)
-              if (!open) setDepositTermsAccepted(false)
+              if (!open) {
+                setCheckoutError("")
+                setDepositTermsAccepted(false)
+              }
             }
           }}
         >
@@ -434,6 +457,15 @@ export function BookingFlow({
                   </div>
                 )}
 
+                {checkoutError && (
+                  <p
+                    role="alert"
+                    className="mt-5 rounded-xl border border-vermilion/20 bg-vermilion/10 px-4 py-3 text-sm leading-6 text-vermilion"
+                  >
+                    {checkoutError}
+                  </p>
+                )}
+
                 <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-4 text-sm leading-6 transition hover:bg-white">
                   <Checkbox.Root
                     checked={depositTermsAccepted}
@@ -455,11 +487,11 @@ export function BookingFlow({
                     disabled={submitting}
                     className="h-12 rounded-full border border-ink/15 px-5 text-sm font-semibold transition hover:bg-white disabled:opacity-40"
                   >
-                    Go back
+                    {checkoutError ? "Choose another time" : "Go back"}
                   </AlertDialog.Close>
                   <button
                     type="button"
-                    disabled={!depositTermsAccepted || submitting}
+                    disabled={!depositTermsAccepted || !selectedSlot || submitting}
                     onClick={() => void startCheckout()}
                     className="flex h-12 items-center justify-center gap-2 rounded-full bg-vermilion px-5 text-sm font-semibold text-white transition hover:bg-vermilion/90 disabled:cursor-not-allowed disabled:opacity-40"
                   >
