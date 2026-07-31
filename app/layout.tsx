@@ -7,7 +7,10 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
-const googleAnalyticsId = process.env.GA_MEASUREMENT_ID;
+const googleAnalyticsId =
+  process.env.SITE_URL === "https://kkawataki.com"
+    ? process.env.GA_MEASUREMENT_ID
+    : undefined;
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? "https://kkawataki.com"),
