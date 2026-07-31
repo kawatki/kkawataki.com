@@ -39,6 +39,25 @@ function requestIsSameOrigin(request: Request) {
   }
 }
 
+function formatStripeDate(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeZone: "Asia/Tokyo",
+  }).format(new Date(value))
+}
+
+function paymentDescription({
+  bookingReference,
+  location,
+  slot,
+}: {
+  bookingReference: string
+  location: string
+  slot: { end: string; label: string; start: string }
+}) {
+  return `${bookingReference} - ${formatStripeDate(slot.start)} - ${slot.label} JST - ${location}`
+}
+
 export async function POST(request: Request) {
   const rateLimit = await checkRateLimit(request.headers, {
     bucket: "checkout",
@@ -136,6 +155,7 @@ export async function POST(request: Request) {
       metadata: {
         booking_reference: bookingReference,
         booking_event_id: slot.id,
+        booking_location: booking.location,
         booking_notes: booking.notes,
         booking_title: booking.title,
         customer_name: booking.name,
@@ -156,10 +176,15 @@ export async function POST(request: Request) {
       },
       mode: "payment",
       payment_intent_data: {
-        description: `Rental Japanese Guy ${bookingReference} — ${slot.label}`,
+        description: paymentDescription({
+          bookingReference,
+          location: booking.location,
+          slot,
+        }),
         metadata: {
           booking_reference: bookingReference,
           booking_event_id: slot.id,
+          booking_location: booking.location,
           slot_start: slot.start,
         },
         receipt_email: booking.email,

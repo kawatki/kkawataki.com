@@ -43,6 +43,7 @@ export type BookingRequest = {
   depositTermsAccepted: boolean
   email: string
   endTime: string
+  location: string
   name: string
   notes: string
   socialHandle: string
@@ -356,6 +357,8 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   const name = typeof input.name === "string" ? input.name.trim() : ""
   const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : ""
   const title = typeof input.title === "string" ? input.title.trim() : ""
+  const location =
+    typeof input.location === "string" ? input.location.trim() : ""
   const notes = typeof input.notes === "string" ? input.notes.trim() : ""
   let socialPlatform: Exclude<BookingRequest["socialPlatform"], "none">
   if (
@@ -398,6 +401,9 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   }
   if (title.length < 3 || title.length > 100) {
     throw new Error("Briefly describe what you would like to do.")
+  }
+  if (location.length < 2 || location.length > 120) {
+    throw new Error("Enter the meeting location.")
   }
   if (notes.length > 450) {
     throw new Error("Please keep your note under 450 characters.")
@@ -445,6 +451,7 @@ export function parseBookingRequest(value: unknown): BookingRequest {
     depositTermsAccepted,
     email,
     endTime,
+    location,
     name,
     notes,
     socialHandle,

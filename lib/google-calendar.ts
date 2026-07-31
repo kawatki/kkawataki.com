@@ -211,6 +211,7 @@ function holdBody(
       "This time is temporarily held while the customer completes payment.",
     ].join("\n"),
     end: { dateTime: slot.end, timeZone: BOOKING_TIME_ZONE },
+    location: request.location,
     extendedProperties: {
       private: {
         bookingReference,
@@ -219,6 +220,7 @@ function holdBody(
         customerName: request.name,
         holdExpiresAt: String(expiresAt),
         holdToken,
+        location: request.location,
         requestNotes: request.notes,
         requestTitle: request.title,
         alternateContact: request.alternateContact,
@@ -467,6 +469,7 @@ export async function confirmPaidBooking(input: {
   durationHours: number
   email: string
   eventId: string
+  location: string
   name: string
   notes: string
   paidAt: number
@@ -567,6 +570,7 @@ export async function confirmPaidBooking(input: {
     ],
     [`Customer: ${input.name}`, `Email: ${input.email}`, ...contactLines],
     [
+      ...(input.location ? [`Location: ${input.location}`] : []),
       `Request: ${input.title}`,
       ...(input.notes ? [`Notes: ${input.notes}`] : []),
     ],
@@ -584,12 +588,14 @@ export async function confirmPaidBooking(input: {
       body: JSON.stringify({
         ...(inviteCustomer ? { attendees: [{ email: input.email }] } : {}),
         description,
+        ...(input.location ? { location: input.location } : {}),
         extendedProperties: {
           private: {
             ...properties,
             bookingState: "confirmed",
             customerEmail: input.email,
             customerName: input.name,
+            location: input.location,
             requestNotes: input.notes,
             requestTitle: input.title,
             alternateContact: input.alternateContact,

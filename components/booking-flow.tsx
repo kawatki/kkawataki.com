@@ -641,6 +641,7 @@ export function BookingFlow({
           depositTermsAccepted: true,
           email: form.get("email"),
           endTime: selectedEnd,
+          location: form.get("location"),
           name: form.get("name"),
           notes: form.get("notes"),
           socialHandle: form.get("socialHandle"),
@@ -1195,6 +1196,18 @@ export function BookingFlow({
               maxLength={100}
               className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light"
               placeholder="Explore record shops in Shimokitazawa"
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-semibold">
+            Meeting location
+            <input
+              name="location"
+              required
+              minLength={2}
+              maxLength={120}
+              autoComplete="street-address"
+              className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light"
+              placeholder="Shibuya Station Hachiko Exit"
             />
           </label>
           <label className="grid gap-2 text-sm font-semibold">

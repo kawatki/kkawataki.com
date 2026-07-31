@@ -51,7 +51,12 @@ async function fulfillCheckout(
   const email = session.customer_details?.email ?? session.customer_email
   const eventId = metadata.booking_event_id
 
-  if (!email || !eventId || !metadata.customer_name || !metadata.booking_title) {
+  if (
+    !email ||
+    !eventId ||
+    !metadata.customer_name ||
+    !metadata.booking_title
+  ) {
     throw new Error("Paid Checkout Session is missing booking metadata.")
   }
 
@@ -63,6 +68,7 @@ async function fulfillCheckout(
     durationHours: pricing.durationHours,
     email,
     eventId,
+    location: metadata.booking_location ?? "",
     name: metadata.customer_name,
     notes: metadata.booking_notes ?? "",
     paidAt,
