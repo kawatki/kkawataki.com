@@ -7,9 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
-  ),
+  metadataBase: new URL(process.env.SITE_URL ?? "https://kkawataki.com"),
   title: {
     default: "Rental Japanese Guy",
     template: "%s · Rental Japanese Guy",
