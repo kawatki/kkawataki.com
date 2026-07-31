@@ -1,6 +1,3 @@
-import Link from "next/link"
-import { ExternalLink } from "lucide-react"
-
 import type { BookingReceipt as BookingReceiptData } from "@/lib/booking"
 
 function yen(amount: number) {
@@ -22,13 +19,7 @@ function receiptTime(value: string) {
   }).format(new Date(value))
 }
 
-export function BookingReceipt({
-  receipt,
-  showPermanentLink = false,
-}: {
-  receipt: BookingReceiptData
-  showPermanentLink?: boolean
-}) {
+export function BookingReceipt({ receipt }: { receipt: BookingReceiptData }) {
   return (
     <section className="mx-auto mt-10 max-w-2xl overflow-hidden rounded-2xl border border-ink/10 text-left">
       <div className="flex flex-col gap-3 bg-cream/70 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
@@ -107,16 +98,6 @@ export function BookingReceipt({
             transportation buffer is reserved after your booking.
           </p>
         </div>
-
-        {showPermanentLink && (
-          <Link
-            href={`/receipt/${encodeURIComponent(receipt.bookingReference)}/`}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-full border border-jade/25 bg-jade/10 px-5 text-sm font-semibold text-jade transition hover:bg-jade/15"
-          >
-            Open your permanent receipt
-            <ExternalLink className="size-4" aria-hidden="true" />
-          </Link>
-        )}
       </div>
     </section>
   )

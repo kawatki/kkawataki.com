@@ -3,12 +3,20 @@
 import { useEffect, useState } from "react"
 import {
   CalendarCheck,
+  Camera,
   CircleAlert,
   LoaderCircle,
   RefreshCw,
+  X,
 } from "lucide-react"
 
 import { BookingReceipt } from "@/components/booking-receipt"
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert"
 import type { BookingReceipt as BookingReceiptData } from "@/lib/booking"
 
 type BookingStatus =
@@ -23,6 +31,7 @@ type BookingStatus =
 export function BookingStatus({ sessionId }: { sessionId: string }) {
   const [status, setStatus] = useState<BookingStatus>("processing")
   const [receipt, setReceipt] = useState<BookingReceiptData | null>(null)
+  const [showReceiptReminder, setShowReceiptReminder] = useState(true)
 
   useEffect(() => {
     let stopped = false
@@ -90,7 +99,37 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
           </p>
         </div>
 
-        {receipt && <BookingReceipt receipt={receipt} showPermanentLink />}
+        {receipt && (
+          <>
+            {showReceiptReminder && (
+              <Alert
+                role="status"
+                className="mx-auto mt-10 max-w-2xl rounded-2xl border-jade/25 bg-jade/10 px-5 py-4 pr-14 text-ink sm:px-6 sm:py-5"
+              >
+                <Camera className="size-5 text-jade" aria-hidden="true" />
+                <AlertTitle className="font-semibold">
+                  Keep a copy of your booking
+                </AlertTitle>
+                <AlertDescription className="mt-1 leading-6 text-ink/65">
+                  Please take a screenshot of the booking receipt below and
+                  keep it until your appointment is complete. Your booking
+                  reference will help if you need to contact me.
+                </AlertDescription>
+                <AlertAction className="right-3 top-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowReceiptReminder(false)}
+                    aria-label="Dismiss receipt reminder"
+                    className="flex size-9 items-center justify-center rounded-full text-ink/50 transition hover:bg-jade/10 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jade"
+                  >
+                    <X className="size-4" aria-hidden="true" />
+                  </button>
+                </AlertAction>
+              </Alert>
+            )}
+            <BookingReceipt receipt={receipt} />
+          </>
+        )}
       </div>
     )
   }
