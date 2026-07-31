@@ -1,8 +1,10 @@
 import {
+  BOOKING_INCREMENT_MINUTES,
   bookingDayHours,
   bookingTransportBufferMinutes,
   generateCandidateSlots,
   getBookingPricing,
+  timeToMinutes,
 } from "@/lib/booking"
 import { listAvailableSlots } from "@/lib/google-calendar"
 import {
@@ -56,6 +58,12 @@ export async function GET(request: Request) {
       })
     }
 
+    const dayHours = bookingDayHours()
+    const fullDaySegments = Math.max(
+      (timeToMinutes(dayHours.end) - timeToMinutes(dayHours.start)) /
+        BOOKING_INCREMENT_MINUTES,
+      0
+    )
     const candidates = generateCandidateSlots()
     const slots = await listAvailableSlots(candidates)
     const availableIds = new Set(slots.map((slot) => slot.id))
@@ -67,12 +75,12 @@ export async function GET(request: Request) {
             .filter((slot) => availableIds.has(slot.id))
             .map((slot) => slot.start.slice(11, 16)),
           date,
-          totalSegments: daySlots.length,
+          totalSegments: fullDaySegments,
         }
       }
     )
     const payload = {
-      dayHours: bookingDayHours(),
+      dayHours,
       days,
       pricing: getBookingPricing(),
       transportBufferMinutes: bookingTransportBufferMinutes(),
