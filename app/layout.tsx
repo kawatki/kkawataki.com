@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
+
+const googleAnalyticsId = process.env.GA_MEASUREMENT_ID;
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? "https://kkawataki.com"),
@@ -56,6 +59,22 @@ export default function RootLayout({
           </TooltipProvider>
         </ThemeProvider>
       </body>
+      {googleAnalyticsId && (
+        <>
+          <Script
+            src={`https://www.googletagmanager.com/gtag/js?id=${googleAnalyticsId}`}
+            strategy="afterInteractive"
+          />
+          <Script id="google-analytics" strategy="afterInteractive">
+            {`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${googleAnalyticsId}');
+            `}
+          </Script>
+        </>
+      )}
     </html>
   );
 }
