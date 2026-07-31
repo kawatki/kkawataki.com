@@ -54,7 +54,10 @@ export default async function BookingPage({
       </section>
 
       <section className="page-shell py-10 sm:py-16">
-        <BookingFlow paymentCancelled={payment === "cancelled"} />
+        <BookingFlow
+          paymentCancelled={payment === "cancelled"}
+          turnstileSiteKey={process.env.TURNSTILE_SITE_KEY?.trim() ?? ""}
+        />
 
         <div className="mt-10 grid gap-6 rounded-2xl bg-ink p-6 text-paper sm:grid-cols-[auto_1fr] sm:p-8">
           <Info className="size-6 text-jade-light" />

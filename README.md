@@ -6,12 +6,19 @@ A Next.js booking site with a payment-gated Google Calendar workflow.
 
 1. The customer chooses a live start and end time in 30-minute increments, with
    a four-hour minimum, and submits their request.
-2. The server creates a temporary private hold in Google Calendar.
-3. Stripe Checkout collects a non-refundable deposit equal to 25% of the
+2. Cloudflare Turnstile is verified on the server before any calendar or
+   Stripe resource is created.
+3. The server creates a 10-minute private hold in Google Calendar.
+4. Stripe Checkout collects a non-refundable deposit equal to 25% of the
    service total.
-4. A signed Stripe webhook changes the hold into a confirmed calendar event.
-5. If an old Checkout Session pays after its hold was replaced, the deposit is
-   automatically refunded instead of creating a conflicting booking.
+5. A signed Stripe webhook changes the hold into a confirmed calendar event
+   only when Stripe says payment completed within the 10-minute deadline.
+6. A late or conflicting payment is automatically refunded instead of creating
+   a conflicting booking.
+
+Stripe-hosted Checkout has a 30-minute minimum Session expiry. The calendar
+hold is still released after 10 minutes; a payment completed after that
+deadline is safely refunded.
 
 The old public Google Appointment Schedule is not used by the website because
 its URL would allow customers to bypass payment.
@@ -43,6 +50,17 @@ For Stripe test mode:
    ```
 
 3. Put the displayed `whsec_...` value into `STRIPE_WEBHOOK_SECRET`.
+
+For Cloudflare Turnstile:
+
+1. Create a Managed Turnstile widget restricted to the production hostname.
+2. Put its public site key into `TURNSTILE_SITE_KEY`.
+3. Put its secret key into `TURNSTILE_SECRET_KEY`.
+4. Put the production hostnames into `TURNSTILE_ALLOWED_HOSTNAME`, separated
+   by commas. Do not include `https://` or URL paths.
+
+Turnstile tokens are validated server-side, checked for the `checkout` action
+and expected hostname, and cannot be reused.
 
 Start the site:
 

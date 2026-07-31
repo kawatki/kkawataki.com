@@ -469,6 +469,7 @@ export async function confirmPaidBooking(input: {
   eventId: string
   name: string
   notes: string
+  paidAt: number
   rateJpyPer30Minutes: number
   sessionId: string
   serviceTotalJpy: number
@@ -487,6 +488,15 @@ export async function confirmPaidBooking(input: {
   }
   if (properties.bookingState === "confirmed") {
     return { confirmed: true as const }
+  }
+  const holdExpiresAt = Number(properties.holdExpiresAt || 0)
+  if (!holdExpiresAt || input.paidAt > holdExpiresAt) {
+    await patchPrivateProperties(
+      input.eventId,
+      { bookingState: "expired" },
+      { stripeSessionId: input.sessionId }
+    )
+    return { conflict: true as const }
   }
 
   const eventStart = event.start?.dateTime
@@ -514,6 +524,11 @@ export async function confirmPaidBooking(input: {
     return candidateProperties.bookingState !== "hold"
   })
   if (hasConflict) {
+    await patchPrivateProperties(
+      input.eventId,
+      { bookingState: "conflict" },
+      { stripeSessionId: input.sessionId }
+    )
     return { conflict: true as const }
   }
 

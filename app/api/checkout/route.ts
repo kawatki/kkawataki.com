@@ -4,6 +4,7 @@ import {
   DEPOSIT_TERMS_VERSION,
   getBookingPricing,
   parseBookingRequest,
+  STRIPE_CHECKOUT_EXPIRY_MINUTES,
   validateRequestedSlot,
 } from "@/lib/booking"
 import {
@@ -18,13 +19,21 @@ import {
   rateLimitedResponse,
 } from "@/lib/rate-limit"
 import { getStripe } from "@/lib/stripe"
+import {
+  TurnstileVerificationError,
+  verifyTurnstile,
+} from "@/lib/turnstile"
 
 function requestIsSameOrigin(request: Request) {
   const origin = request.headers.get("origin")
   if (!origin) {
     return false
   }
-  return new URL(origin).host === new URL(request.url).host
+  try {
+    return new URL(origin).host === new URL(request.url).host
+  } catch {
+    return false
+  }
 }
 
 export async function POST(request: Request) {
@@ -45,7 +54,13 @@ export async function POST(request: Request) {
   let holdToken: string | undefined
 
   try {
-    const booking = parseBookingRequest(await request.json())
+    const input = await request.json()
+    const turnstileToken =
+      input && typeof input === "object" && "turnstileToken" in input
+        ? input.turnstileToken
+        : undefined
+    await verifyTurnstile(turnstileToken, request)
+    const booking = parseBookingRequest(input)
     const slot = validateRequestedSlot(
       booking.date,
       booking.startTime,
@@ -57,14 +72,16 @@ export async function POST(request: Request) {
     holdToken = crypto.randomUUID()
 
     // Stripe requires Checkout Sessions to remain open for at least 30 minutes.
-    // The extra minute prevents clock drift from making the request invalid.
-    const expiresAt =
-      Math.floor(Date.now() / 1_000) + CHECKOUT_HOLD_MINUTES * 60 + 60
+    // The calendar hold is intentionally shorter; a late payment is refunded.
+    const now = Math.floor(Date.now() / 1_000)
+    const holdExpiresAt = now + CHECKOUT_HOLD_MINUTES * 60
+    const stripeExpiresAt =
+      now + STRIPE_CHECKOUT_EXPIRY_MINUTES * 60 + 60
 
     await acquireSlot(
       slot,
       booking,
-      expiresAt,
+      holdExpiresAt,
       holdToken,
       bookingReference
     )
@@ -76,10 +93,10 @@ export async function POST(request: Request) {
       customer_email: booking.email,
       custom_text: {
         submit: {
-          message: `Service rate: ¥${pricing.rateJpyPer30Minutes.toLocaleString("en-US")} per 30 minutes (¥${pricing.serviceTotalJpy.toLocaleString("en-US")} for ${pricing.durationHours} hours). The 25% deposit of ¥${pricing.depositAmountJpy.toLocaleString("en-US")} is non-refundable if you cancel or do not attend, and is deducted from the final amount. You also cover transportation and any food or drinks during our time together.`,
+          message: `Complete payment within ${CHECKOUT_HOLD_MINUTES} minutes to keep this time. Service rate: ¥${pricing.rateJpyPer30Minutes.toLocaleString("en-US")} per 30 minutes (¥${pricing.serviceTotalJpy.toLocaleString("en-US")} for ${pricing.durationHours} hours). The 25% deposit of ¥${pricing.depositAmountJpy.toLocaleString("en-US")} is non-refundable if you cancel or do not attend, and is deducted from the final amount. You also cover transportation and any food or drinks during our time together.`,
         },
       },
-      expires_at: expiresAt,
+      expires_at: stripeExpiresAt,
       line_items: [
         {
           price_data: {
@@ -110,6 +127,7 @@ export async function POST(request: Request) {
         service_total_jpy: String(pricing.serviceTotalJpy),
         social_handle: booking.socialHandle,
         social_platform: booking.socialPlatform,
+        hold_expires_at: String(holdExpiresAt),
         slot_end: slot.end,
         slot_start: slot.start,
       },
@@ -133,7 +151,12 @@ export async function POST(request: Request) {
     }
 
     try {
-      await attachCheckoutSession(slot.id, session.id, expiresAt, holdToken)
+      await attachCheckoutSession(
+        slot.id,
+        session.id,
+        holdExpiresAt,
+        holdToken
+      )
     } catch (error) {
       await stripe.checkout.sessions.expire(session.id)
       await expireHold(slot.id, holdToken)
@@ -158,6 +181,12 @@ export async function POST(request: Request) {
       return Response.json(
         { error: "Online payment is being configured. Please check back soon." },
         { status: 503 }
+      )
+    }
+    if (error instanceof TurnstileVerificationError) {
+      return Response.json(
+        { error: error.message },
+        { status: error.unavailable ? 503 : 400 }
       )
     }
     if (error instanceof Error && error.message.startsWith("Enter")) {

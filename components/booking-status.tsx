@@ -18,6 +18,7 @@ type BookingStatus =
   | "invalid"
   | "pending"
   | "processing"
+  | "refunded"
 
 export function BookingStatus({ sessionId }: { sessionId: string }) {
   const [status, setStatus] = useState<BookingStatus>("processing")
@@ -47,7 +48,8 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
           if (
             result.status === "confirmed" ||
             result.status === "error" ||
-            result.status === "invalid"
+            result.status === "invalid" ||
+            result.status === "refunded"
           ) {
             return
           }
@@ -93,9 +95,21 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
     )
   }
 
-  if (status === "invalid" || status === "error" || status === "delayed") {
+  if (
+    status === "invalid" ||
+    status === "error" ||
+    status === "delayed" ||
+    status === "refunded"
+  ) {
     const copy =
-      status === "invalid"
+      status === "refunded"
+        ? {
+            description:
+              "Payment finished after the 10-minute reservation expired, so the deposit is being returned automatically. Please choose an available time and try again.",
+            eyebrow: "Reservation expired",
+            title: "Your payment is being refunded.",
+          }
+        : status === "invalid"
         ? {
             description:
               "This Checkout Session is not recognized by the Stripe account connected to this site. Use the complete confirmation link from Stripe, or return to booking.",
@@ -128,7 +142,7 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
         <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-ink/65">
           {copy.description}
         </p>
-        {status !== "invalid" && (
+        {status !== "invalid" && status !== "refunded" && (
           <button
             type="button"
             onClick={() => window.location.reload()}

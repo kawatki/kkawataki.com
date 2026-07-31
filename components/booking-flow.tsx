@@ -1,6 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { AlertDialog } from "@base-ui/react/alert-dialog"
 import { Checkbox } from "@base-ui/react/checkbox"
 import { toast } from "sonner"
@@ -26,6 +32,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { TurnstileWidget } from "@/components/turnstile-widget"
 
 type AvailabilityDay = {
   availableTimes: string[]
@@ -270,8 +277,10 @@ function StepLabel({
 
 export function BookingFlow({
   paymentCancelled = false,
+  turnstileSiteKey,
 }: {
   paymentCancelled?: boolean
+  turnstileSiteKey: string
 }) {
   const [days, setDays] = useState<AvailabilityDay[]>([])
   const [visibleMonth, setVisibleMonth] = useState("")
@@ -290,6 +299,8 @@ export function BookingFlow({
   const [checkoutError, setCheckoutError] = useState("")
   const [confirmationOpen, setConfirmationOpen] = useState(false)
   const [depositTermsAccepted, setDepositTermsAccepted] = useState(false)
+  const [turnstileToken, setTurnstileToken] = useState("")
+  const [turnstileAttempt, setTurnstileAttempt] = useState(0)
   const [socialPlatform, setSocialPlatform] =
     useState<CustomerMessagingPlatform>("instagram")
   const messagingField = MESSAGING_FIELDS[socialPlatform]
@@ -301,6 +312,9 @@ export function BookingFlow({
   const guideDateDoneRef = useRef(false)
   const guideFormDoneRef = useRef(false)
   const guideHighlightTimerRef = useRef<number | null>(null)
+  const handleTurnstileToken = useCallback((token: string) => {
+    setTurnstileToken(token)
+  }, [])
 
   function guideToStep(
     step: 1 | 2 | 3,
@@ -545,6 +559,8 @@ export function BookingFlow({
     event.preventDefault()
     setCheckoutError("")
     setDepositTermsAccepted(false)
+    setTurnstileToken("")
+    setTurnstileAttempt((attempt) => attempt + 1)
     setConfirmationOpen(true)
   }
 
@@ -552,7 +568,8 @@ export function BookingFlow({
     if (
       !depositTermsAccepted ||
       !formRef.current ||
-      !selectedPricing
+      !selectedPricing ||
+      !turnstileToken
     ) return
 
     setError("")
@@ -573,6 +590,7 @@ export function BookingFlow({
           date: selectedDate,
           startTime: selectedStart,
           title: form.get("title"),
+          turnstileToken,
         }),
         headers: { "content-type": "application/json" },
         method: "POST",
@@ -601,6 +619,8 @@ export function BookingFlow({
           ? `${message} Close this notice and choose another time.`
           : message
       )
+      setTurnstileToken("")
+      setTurnstileAttempt((attempt) => attempt + 1)
       setSubmitting(false)
     }
   }
@@ -1160,6 +1180,7 @@ export function BookingFlow({
               if (!open) {
                 setCheckoutError("")
                 setDepositTermsAccepted(false)
+                setTurnstileToken("")
               }
             }
           }}
@@ -1185,7 +1206,8 @@ export function BookingFlow({
                 </AlertDialog.Title>
                 <AlertDialog.Description className="mt-4 text-sm leading-6 text-ink/65">
                   Here is the exact price for your selected time. Please check
-                  it before continuing to Stripe.
+                  it before continuing to Stripe. Once checkout opens, you have
+                  10 minutes to complete payment.
                 </AlertDialog.Description>
 
                 <div className="mt-6 rounded-2xl border border-vermilion/20 bg-vermilion/[0.06] p-5">
@@ -1246,6 +1268,23 @@ export function BookingFlow({
                   </p>
                 )}
 
+                {turnstileSiteKey ? (
+                  <div className="mt-6">
+                    <TurnstileWidget
+                      key={turnstileAttempt}
+                      onTokenChange={handleTurnstileToken}
+                      siteKey={turnstileSiteKey}
+                    />
+                  </div>
+                ) : (
+                  <p
+                    role="alert"
+                    className="mt-6 rounded-xl border border-vermilion/20 bg-vermilion/10 px-4 py-3 text-sm leading-6 text-vermilion"
+                  >
+                    Secure checkout is temporarily unavailable.
+                  </p>
+                )}
+
                 <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-4 text-sm leading-6 transition hover:bg-card">
                   <Checkbox.Root
                     checked={depositTermsAccepted}
@@ -1274,6 +1313,7 @@ export function BookingFlow({
                     disabled={
                       !depositTermsAccepted ||
                       !selectedPricing ||
+                      !turnstileToken ||
                       submitting
                     }
                     onClick={() => void startCheckout()}

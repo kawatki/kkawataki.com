@@ -50,6 +50,9 @@ export async function GET(request: Request) {
     }
 
     const calendarState = await getBookingState(eventId, session.id)
+    if (calendarState === "expired" || calendarState === "conflict") {
+      return Response.json({ status: "refunded" })
+    }
     const metadata = session.metadata ?? {}
     const receipt =
       metadata.booking_reference &&

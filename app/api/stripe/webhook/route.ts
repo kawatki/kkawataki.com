@@ -24,7 +24,10 @@ async function refundConflictingPayment(session: Stripe.Checkout.Session) {
   )
 }
 
-async function fulfillCheckout(session: Stripe.Checkout.Session) {
+async function fulfillCheckout(
+  session: Stripe.Checkout.Session,
+  paidAt: number
+) {
   if (session.payment_status !== "paid") {
     return
   }
@@ -62,6 +65,7 @@ async function fulfillCheckout(session: Stripe.Checkout.Session) {
     eventId,
     name: metadata.customer_name,
     notes: metadata.booking_notes ?? "",
+    paidAt,
     rateJpyPer30Minutes: pricing.rateJpyPer30Minutes,
     sessionId: session.id,
     serviceTotalJpy: pricing.serviceTotalJpy,
@@ -106,7 +110,7 @@ export async function POST(request: Request) {
 
   try {
     if (event.type === "checkout.session.completed") {
-      await fulfillCheckout(event.data.object)
+      await fulfillCheckout(event.data.object, event.created)
     }
     return Response.json({ received: true })
   } catch (error) {
