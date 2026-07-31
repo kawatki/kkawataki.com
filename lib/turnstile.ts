@@ -9,6 +9,7 @@ const MAX_TOKEN_LENGTH = 2_048
 
 type TurnstileResult = {
   action?: string
+  "error-codes"?: string[]
   hostname?: string
   success?: boolean
 }
@@ -86,6 +87,7 @@ export async function verifyTurnstile(
       allowedHostnames.includes(result.hostname.toLowerCase()))
   const actionMatches =
     testing ||
+    !result.action ||
     result.action === TURNSTILE_ACTION
 
   if (
@@ -93,6 +95,14 @@ export async function verifyTurnstile(
     !actionMatches ||
     !hostnameMatches
   ) {
+    console.error("Turnstile verification rejected", {
+      action: result.action ?? null,
+      errorCodes: result["error-codes"] ?? [],
+      hostname: result.hostname ?? null,
+      hostnameMatches,
+      actionMatches,
+      success: result.success ?? false,
+    })
     throw new TurnstileVerificationError(
       "The security check expired or could not be verified. Please try again."
     )

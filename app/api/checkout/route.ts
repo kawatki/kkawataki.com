@@ -39,7 +39,7 @@ function requestIsSameOrigin(request: Request) {
 export async function POST(request: Request) {
   const rateLimit = await checkRateLimit(request.headers, {
     bucket: "checkout",
-    limit: 8,
+    limit: 30,
     windowSeconds: 10 * 60,
   })
   if (!rateLimit.allowed) {
