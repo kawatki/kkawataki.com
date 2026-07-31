@@ -4,8 +4,9 @@ A Next.js booking site with a payment-gated Google Calendar workflow.
 
 ## Booking flow
 
-1. The customer chooses a live start and end time in 30-minute increments, with
-   a four-hour minimum, and submits their request.
+1. The customer chooses a live start and end time in 30-minute increments. The
+   system prefers four-hour bookings, then falls back to three, two, or one hour
+   only when a longer range is unavailable.
 2. Cloudflare Turnstile is verified on the server before any calendar or
    Stripe resource is created.
 3. The server creates a 10-minute private hold in Google Calendar.

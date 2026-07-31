@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 }
 
 const bookingFacts = [
-  { icon: Clock3, label: "Duration", value: "4-hour minimum" },
+  { icon: Clock3, label: "Duration", value: "4h preferred, flexible" },
   { icon: CreditCard, label: "To reserve", value: "25% deposit" },
   { icon: CalendarCheck, label: "Confirmation", value: "After payment" },
 ]

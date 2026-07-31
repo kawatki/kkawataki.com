@@ -34,7 +34,7 @@ const steps = [
   {
     number: "01",
     title: "Pick a time",
-    copy: "Choose your own start and end time, with a four-hour minimum.",
+    copy: "Choose your own start and end time. I prefer four hours or longer, but shorter sessions open when the day is nearly full.",
   },
   {
     number: "02",

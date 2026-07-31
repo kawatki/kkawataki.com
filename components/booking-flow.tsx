@@ -165,6 +165,38 @@ function startOptions(day: AvailabilityDay, pricing: BookingPricing) {
   )
 }
 
+function pricingWithMinimum(
+  pricing: BookingPricing,
+  minimumDurationMinutes: number
+) {
+  return {
+    ...pricing,
+    minimumDurationMinutes,
+  }
+}
+
+function minimumDurationForDay(
+  day: AvailabilityDay,
+  pricing: BookingPricing
+) {
+  return (
+    pricing.minimumDurationOptions.find(
+      (minimumDurationMinutes) =>
+        startOptions(
+          day,
+          pricingWithMinimum(pricing, minimumDurationMinutes)
+        ).length > 0
+    ) ?? null
+  )
+}
+
+function dayPricing(day: AvailabilityDay, pricing: BookingPricing) {
+  const minimumDurationMinutes = minimumDurationForDay(day, pricing)
+  return minimumDurationMinutes
+    ? pricingWithMinimum(pricing, minimumDurationMinutes)
+    : null
+}
+
 function timelineTimes(
   startTime: string,
   endTime: string,
@@ -216,10 +248,19 @@ function calendarDates(month: string) {
 }
 
 function dayAvailability(day: AvailabilityDay, pricing: BookingPricing) {
+  const effectivePricing = dayPricing(day, pricing)
+  if (!effectivePricing) {
+    return {
+      className: "border-ink/5 bg-ink/[0.08] text-ink/30",
+      label: "Unavailable",
+    }
+  }
+
   const minimumSegments =
-    pricing.minimumDurationMinutes / pricing.bookingIncrementMinutes
+    effectivePricing.minimumDurationMinutes /
+    effectivePricing.bookingIncrementMinutes
   const maximumStarts = Math.max(day.totalSegments - minimumSegments + 1, 0)
-  const availableStarts = startOptions(day, pricing).length
+  const availableStarts = startOptions(day, effectivePricing).length
 
   if (!availableStarts || !maximumStarts) {
     return {
@@ -233,20 +274,20 @@ function dayAvailability(day: AvailabilityDay, pricing: BookingPricing) {
     return {
       className:
         "border-[#286557] bg-[#286557] text-white hover:bg-[#22584C]",
-      label: "Plenty of times",
+      label: `Plenty of ${effectivePricing.minimumDurationMinutes / 60}h+ times`,
     }
   }
   if (remainingRatio > 0.33) {
     return {
       className:
         "border-[#76A99B] bg-[#79AA9C] text-white hover:bg-[#699C8E]",
-      label: "Filling up",
+      label: `${effectivePricing.minimumDurationMinutes / 60}h+ times available`,
     }
   }
   return {
     className:
       "border-[#B8D5CD] bg-[#DCEBE7] text-[#214E43] hover:bg-[#D1E4DF]",
-    label: "Limited times",
+    label: `Limited ${effectivePricing.minimumDurationMinutes / 60}h+ times`,
   }
 }
 
@@ -367,14 +408,14 @@ export function BookingFlow({
       setSelectedStart("")
       setSelectedEnd("")
       const firstAvailable = result.days.find(
-        (day) => startOptions(day, result.pricing!).length
+        (day) => dayPricing(day, result.pricing!)
       )
       setSelectedDate((current) =>
         current &&
         result.days?.some(
           (day) =>
             day.date === current &&
-            startOptions(day, result.pricing!).length
+            dayPricing(day, result.pricing!)
         )
           ? current
           : ""
@@ -447,11 +488,15 @@ export function BookingFlow({
     () => (visibleMonth ? calendarDates(visibleMonth) : []),
     [visibleMonth]
   )
+  const activePricing = useMemo(
+    () => (activeDay && pricing ? dayPricing(activeDay, pricing) : null),
+    [activeDay, pricing]
+  )
   const activeStartOptions =
-    activeDay && pricing ? startOptions(activeDay, pricing) : []
+    activeDay && activePricing ? startOptions(activeDay, activePricing) : []
   const activeEndOptions =
-    activeDay && pricing
-      ? endOptions(activeDay, selectedStart, pricing)
+    activeDay && activePricing
+      ? endOptions(activeDay, selectedStart, activePricing)
       : []
   const activeTimelineTimes = useMemo(
     () =>
@@ -472,26 +517,26 @@ export function BookingFlow({
     ].filter((row) => row.length)
   }, [activeTimelineTimes])
   const selectedPricing = useMemo(() => {
-    if (!pricing || !selectedStart || !selectedEnd) return null
+    if (!activePricing || !selectedStart || !selectedEnd) return null
 
     const durationMinutes =
       timeToMinutes(selectedEnd) - timeToMinutes(selectedStart)
-    if (durationMinutes < pricing.minimumDurationMinutes) return null
+    if (durationMinutes < activePricing.minimumDurationMinutes) return null
 
     const serviceTotalJpy =
-      pricing.rateJpyPer30Minutes *
-      (durationMinutes / pricing.bookingIncrementMinutes)
+      activePricing.rateJpyPer30Minutes *
+      (durationMinutes / activePricing.bookingIncrementMinutes)
     const depositAmountJpy = Math.ceil(
-      (serviceTotalJpy * pricing.depositPercent) / 100
+      (serviceTotalJpy * activePricing.depositPercent) / 100
     )
     return {
-      ...pricing,
+      ...activePricing,
       balanceDueJpy: serviceTotalJpy - depositAmountJpy,
       depositAmountJpy,
       durationHours: durationMinutes / 60,
       serviceTotalJpy,
     }
-  }, [pricing, selectedEnd, selectedStart])
+  }, [activePricing, selectedEnd, selectedStart])
 
   useEffect(() => {
     if (selectedPricing) {
@@ -514,7 +559,7 @@ export function BookingFlow({
   }
 
   function selectTimelineTime(time: string) {
-    if (!activeDay || !pricing) return
+    if (!activeDay || !activePricing) return
 
     const canStart = activeStartOptions.includes(time)
     if (!selectedStart || selectedEnd) {
@@ -526,20 +571,23 @@ export function BookingFlow({
     }
 
     const endTime = minutesToTime(
-      timeToMinutes(time) + pricing.bookingIncrementMinutes
+      timeToMinutes(time) + activePricing.bookingIncrementMinutes
     )
     const attemptedDuration =
       timeToMinutes(endTime) - timeToMinutes(selectedStart)
 
     if (
       attemptedDuration > 0 &&
-      attemptedDuration < pricing.minimumDurationMinutes
+      attemptedDuration < activePricing.minimumDurationMinutes
     ) {
-      toast.error("Choose at least 4 hours", {
-        id: "minimum-booking-duration",
-        description: `Your end time must be at least ${pricing.minimumDurationMinutes / 60} hours after ${displayTime(selectedStart)}.`,
-        duration: 3500,
-      })
+      toast.error(
+        `Choose at least ${activePricing.minimumDurationMinutes / 60} hours`,
+        {
+          id: "minimum-booking-duration",
+          description: `Your end time must be at least ${activePricing.minimumDurationMinutes / 60} hours after ${displayTime(selectedStart)}.`,
+          duration: 3500,
+        }
+      )
       return
     }
 
@@ -736,8 +784,11 @@ export function BookingFlow({
                         "border-ink/5 bg-ink/[0.08] text-ink/30",
                       label: "Unavailable",
                     }
-                const available =
-                  pricing ? startOptions(day, pricing).length : 0
+                const effectiveDayPricing =
+                  pricing ? dayPricing(day, pricing) : null
+                const available = effectiveDayPricing
+                  ? startOptions(day, effectiveDayPricing).length
+                  : 0
                 const selected = selectedDate === day.date
                 return (
                   <Tooltip key={day.date}>
@@ -809,7 +860,9 @@ export function BookingFlow({
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-ink/55">
                   Tap an available start, then tap your end time. Times are
-                  offered in 30-minute increments. A{" "}
+                  offered in 30-minute increments. I try to keep bookings at 4
+                  hours or longer; if no 4-hour range is left that day, shorter
+                  sessions open automatically. A{" "}
                   {transportBufferMinutes / 60}-hour transportation buffer is
                   automatically kept after every booking.
                 </p>
@@ -931,7 +984,11 @@ export function BookingFlow({
                       : !selectedEnd
                         ? `Starts at ${displayTime(
                             selectedStart
-                          )}. Now choose an end time at least four hours later.`
+                          )}. Now choose an end time at least ${
+                            activePricing
+                              ? activePricing.minimumDurationMinutes / 60
+                              : 4
+                          } hours later.`
                         : `${displayTime(selectedStart)}–${displayTime(
                             selectedEnd
                           )} selected. Tap another available time to start again.`}
@@ -952,11 +1009,11 @@ export function BookingFlow({
                           const nextStart = event.target.value
                           setSelectedStart(nextStart)
                           setSelectedEnd(
-                            nextStart && pricing
+                            nextStart && activePricing
                               ? (endOptions(
                                   activeDay,
                                   nextStart,
-                                  pricing
+                                  activePricing
                                 )[0] ?? "")
                               : ""
                           )

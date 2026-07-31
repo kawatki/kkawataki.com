@@ -1,6 +1,13 @@
 export const BOOKING_TIME_ZONE = "Asia/Tokyo"
 export const BOOKING_INCREMENT_MINUTES = 30
-export const MINIMUM_BOOKING_MINUTES = 4 * 60
+export const PREFERRED_BOOKING_MINUTES = 4 * 60
+export const MINIMUM_BOOKING_MINUTES = 60
+export const FALLBACK_BOOKING_MINUTES = [
+  PREFERRED_BOOKING_MINUTES,
+  3 * 60,
+  2 * 60,
+  MINIMUM_BOOKING_MINUTES,
+] as const
 export const DEPOSIT_PERCENT = 25
 export const DEPOSIT_TERMS_VERSION = "2026-07-30-v2"
 export const CHECKOUT_HOLD_MINUTES = 10
@@ -50,7 +57,9 @@ export type BookingPricing = {
   depositAmountJpy: number
   depositPercent: number
   durationHours: number
+  minimumDurationOptions: number[]
   minimumDurationMinutes: number
+  preferredDurationMinutes: number
   rateJpyPer30Minutes: number
   serviceTotalJpy: number
 }
@@ -82,14 +91,14 @@ export function createBookingReference() {
 }
 
 export function getBookingPricing(
-  durationMinutes = MINIMUM_BOOKING_MINUTES
+  durationMinutes = PREFERRED_BOOKING_MINUTES
 ): BookingPricing {
   if (
     !Number.isInteger(durationMinutes) ||
     durationMinutes < MINIMUM_BOOKING_MINUTES ||
     durationMinutes % BOOKING_INCREMENT_MINUTES !== 0
   ) {
-    throw new Error("Choose a booking of at least four hours.")
+    throw new Error("Choose a booking of at least one hour.")
   }
 
   const configuredRate = Number(process.env.BOOKING_RATE_JPY_PER_30_MINUTES)
@@ -109,7 +118,9 @@ export function getBookingPricing(
     depositAmountJpy,
     depositPercent: DEPOSIT_PERCENT,
     durationHours: durationMinutes / 60,
-    minimumDurationMinutes: MINIMUM_BOOKING_MINUTES,
+    minimumDurationOptions: [...FALLBACK_BOOKING_MINUTES],
+    minimumDurationMinutes: PREFERRED_BOOKING_MINUTES,
+    preferredDurationMinutes: PREFERRED_BOOKING_MINUTES,
     rateJpyPer30Minutes,
     serviceTotalJpy,
   }
@@ -217,7 +228,7 @@ function createSlot(
     Number.isNaN(parsedEnd.getTime()) ||
     parsedEnd.getTime() <= parsedStart.getTime()
   ) {
-    throw new Error("Choose a valid time range of at least four hours.")
+    throw new Error("Choose a valid time range.")
   }
 
   return {
@@ -249,7 +260,7 @@ export function makeSlot(
     durationMinutes < MINIMUM_BOOKING_MINUTES ||
     durationMinutes % BOOKING_INCREMENT_MINUTES !== 0
   ) {
-    throw new Error("Choose a valid time range of at least four hours.")
+    throw new Error("Choose a valid time range of at least one hour.")
   }
 
   return createSlot(date, startTime, endTime, durationMinutes)
@@ -307,6 +318,33 @@ export function generateCandidateSlots(now = new Date()) {
   }
 
   return slots
+}
+
+export function minimumDurationForAvailableTimes(
+  availableTimes: string[],
+  durationOptions = FALLBACK_BOOKING_MINUTES
+) {
+  const available = new Set(availableTimes)
+
+  return (
+    durationOptions.find((durationMinutes) =>
+      availableTimes.some((startTime) => {
+        const start = timeToMinutes(startTime)
+        if (!Number.isFinite(start)) return false
+
+        for (
+          let minute = start;
+          minute < start + durationMinutes;
+          minute += BOOKING_INCREMENT_MINUTES
+        ) {
+          if (!available.has(minutesToTime(minute))) {
+            return false
+          }
+        }
+        return true
+      })
+    ) ?? null
+  )
 }
 
 export function parseBookingRequest(value: unknown): BookingRequest {

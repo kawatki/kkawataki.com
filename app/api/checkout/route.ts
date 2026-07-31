@@ -3,14 +3,17 @@ import {
   createBookingReference,
   DEPOSIT_TERMS_VERSION,
   getBookingPricing,
+  minimumDurationForAvailableTimes,
   parseBookingRequest,
   STRIPE_CHECKOUT_EXPIRY_MINUTES,
+  generateCandidateSlots,
   validateRequestedSlot,
 } from "@/lib/booking"
 import {
   acquireSlot,
   attachCheckoutSession,
   expireHold,
+  listAvailableSlots,
   SlotUnavailableError,
 } from "@/lib/google-calendar"
 import { ConfigurationError } from "@/lib/server-config"
@@ -66,6 +69,26 @@ export async function POST(request: Request) {
       booking.startTime,
       booking.endTime
     )
+    const dayCandidates = generateCandidateSlots().filter(
+      (candidate) => candidate.date === booking.date
+    )
+    const availableDaySlots = await listAvailableSlots(dayCandidates)
+    const allowedMinimumDuration = minimumDurationForAvailableTimes(
+      availableDaySlots.map((candidate) => candidate.start.slice(11, 16))
+    )
+    if (
+      !allowedMinimumDuration ||
+      slot.durationMinutes < allowedMinimumDuration
+    ) {
+      return Response.json(
+        {
+          error: allowedMinimumDuration
+            ? `This date still has a ${allowedMinimumDuration / 60}-hour booking available. Please choose at least ${allowedMinimumDuration / 60} hours.`
+            : "That date has just become unavailable. Please choose another date.",
+        },
+        { status: 409 }
+      )
+    }
     const pricing = getBookingPricing(slot.durationMinutes)
     const bookingReference = createBookingReference()
     slotId = slot.id
