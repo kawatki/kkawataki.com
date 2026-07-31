@@ -136,7 +136,7 @@ export function SiteHeader() {
                     <ArrowUpRight />
                   </Link>
                   <p className="mt-4 text-center text-xs leading-5 text-ink/45">
-                    Tokyo, without the tourist script.
+                    Tokyo, with a Japanese guy on your side.
                   </p>
                 </div>
               </Dialog.Popup>

@@ -15,18 +15,18 @@ import { cn } from "@/lib/utils"
 const experiences = [
   {
     icon: Coffee,
-    title: "Everyday Tokyo",
-    copy: "Coffee shops, record stores, neighborhoods, and the small places that make a day memorable.",
+    title: "Your local guide",
+    copy: "Explore neighborhoods, food, subculture, and everyday Tokyo with someone who actually lives here.",
   },
   {
     icon: MapPin,
-    title: "Your kind of city",
-    copy: "Tell me what you are curious about. We will shape the time around your pace and interests.",
+    title: "Your temporary homie",
+    copy: "Have someone relaxed to talk with, wander with, and share an experience you would not have alone.",
   },
   {
     icon: Sparkles,
-    title: "No tour script",
-    copy: "This is personal company and local context—not a flag-following group tour.",
+    title: "Your practical plus-one",
+    copy: "Get a second opinion, cultural context, or another person on your side when a plan feels unfamiliar.",
   },
 ]
 
@@ -55,17 +55,21 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(210,69,44,0.16),transparent_26%),radial-gradient(circle_at_20%_80%,rgba(32,91,77,0.10),transparent_24%)]" />
         <div className="page-shell relative grid min-h-[calc(100svh-76px)] items-center gap-12 py-16 lg:grid-cols-[1.15fr_0.85fr] lg:py-24">
           <div className="max-w-3xl">
-            <p className="eyebrow">A local companion in Tokyo</p>
+            <p className="eyebrow">A Japanese guy for the role you need</p>
             <h1 className="mt-6 text-balance font-display text-[clamp(4rem,10vw,8.8rem)] leading-[0.82] tracking-[-0.065em]">
               Tokyo,
               <br />
-              <span className="text-vermilion">without</span> the
+              <span className="whitespace-nowrap text-[0.57em] tracking-[-0.045em] sm:text-[0.64em]">
+                with a Japanese guy
+              </span>
               <br />
-              tourist script.
+              <span className="text-vermilion">on your side.</span>
             </h1>
             <p className="mt-8 max-w-xl text-lg leading-8 text-ink/70 sm:text-xl">
-              Book a Japanese local for four hours or longer, shaped around
-              what you actually want to see, eat, learn, or talk about.
+              Book me as your local guide, temporary homie, cultural
+              translator, shopping partner, platonic plus-one, or practical
+              problem-solver. Tell me what kind of experience—or help—you need,
+              and we’ll shape the time around it.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link
@@ -135,7 +139,7 @@ export default function HomePage() {
           <div>
             <p className="eyebrow">What this is</p>
             <h2 className="mt-4 max-w-sm font-display text-5xl leading-[0.95] tracking-tight sm:text-6xl">
-              A person, not a package.
+              A person for the plan—not a package tour.
             </h2>
           </div>
           <div className="grid gap-px overflow-hidden rounded-3xl border border-ink/10 bg-ink/10 md:grid-cols-3">

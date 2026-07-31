@@ -1,6 +1,11 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowRight, Compass, MessageCircle, UsersRound } from "lucide-react"
+import {
+  ArrowRight,
+  Compass,
+  MessageCircle,
+  UsersRound,
+} from "lucide-react"
 
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -8,7 +13,7 @@ import { cn } from "@/lib/utils"
 export const metadata: Metadata = {
   title: "About",
   description:
-    "The thinking behind Rental Japanese Guy: personal company and a more human way to experience Tokyo.",
+    "A flexible local companion for the role your Tokyo plan needs: guide, temporary homie, plus-one, or practical problem-solver.",
 }
 
 const principles = [
@@ -19,8 +24,8 @@ const principles = [
   },
   {
     icon: Compass,
-    title: "Your interests lead",
-    copy: "Food, design, subculture, ordinary neighborhoods, or simply having local company—the day starts with you.",
+    title: "Your need leads",
+    copy: "A neighborhood, an unusual idea, a difficult errand, or simply wanting company—the time starts with what you need.",
   },
   {
     icon: UsersRound,
@@ -37,12 +42,14 @@ export default function AboutPage() {
         <div className="page-shell relative py-20 sm:py-28">
           <p className="eyebrow">About the idea</p>
           <h1 className="mt-5 max-w-5xl text-balance font-display text-6xl leading-[0.9] tracking-[-0.045em] sm:text-8xl">
-            Japan is easier to understand with someone beside you.
+            The Japanese guy your plan needs.
           </h1>
-          <p className="mt-10 max-w-2xl text-lg leading-8 text-ink/65">
-            Rental Japanese Guy is for visitors who want something between
-            wandering alone and joining a formal tour: local company, honest
-            conversation, and a day with room to breathe.
+          <p className="mt-10 max-w-3xl text-lg leading-8 text-ink/65">
+            Some people need a guide. Others want a temporary homie, a second
+            opinion, help navigating an unfamiliar situation, or simply
+            someone fun to share Tokyo with. Rental Japanese Guy is
+            intentionally flexible: you bring the idea, question, or problem,
+            and we work out the role that makes your day better.
           </p>
         </div>
       </section>
@@ -51,20 +58,20 @@ export default function AboutPage() {
         <div>
           <p className="eyebrow">Why it exists</p>
           <h2 className="mt-4 font-display text-5xl leading-[0.95] tracking-tight">
-            The city behind the checklist.
+            Some plans are better with backup.
           </h2>
         </div>
         <div className="space-y-6 text-lg leading-8 text-ink/70">
           <p>
-            Travel can become a race between famous places. But the moments
-            people remember are often smaller: understanding what is happening
-            around them, finding somewhere they would never have entered alone,
-            or finally asking the questions that guidebooks do not answer.
+            Being in an unfamiliar country can turn a simple plan into a
+            challenge. Sometimes you need local knowledge. Sometimes you need
+            another perspective. Sometimes you just want someone beside you
+            while you try something unusual.
           </p>
           <p>
-            This service keeps the structure intentionally light. You bring an
-            idea—or just curiosity—and we turn four hours into something that
-            feels personal.
+            This service keeps the structure intentionally light. You bring the
+            plan—or just curiosity—and we shape the role and the time around
+            what would genuinely help.
           </p>
         </div>
       </section>
@@ -93,22 +100,40 @@ export default function AboutPage() {
         <div className="grid items-center gap-10 rounded-[2rem] bg-jade p-7 text-paper sm:p-12 lg:grid-cols-[1fr_auto]">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-paper/55">
-              Ready when you are
+              Questions are welcome
             </p>
             <h2 className="mt-4 max-w-2xl font-display text-5xl leading-[0.95] tracking-tight">
-              Let’s make Tokyo feel a little more familiar.
+              Not sure whether your idea fits?
             </h2>
+            <p className="mt-5 max-w-2xl text-sm leading-6 text-paper/65 sm:text-base">
+              Questions and unusual requests are welcome. Message me on
+              Instagram before booking and tell me what you have in mind.
+            </p>
           </div>
-          <Link
-            href="/booking"
-            className={cn(
-              buttonVariants({ size: "lg" }),
-              "h-12 rounded-full bg-paper px-6 text-ink hover:bg-white dark:hover:bg-cream"
-            )}
-          >
-            Check availability
-            <ArrowRight />
-          </Link>
+          <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+            <a
+              href="https://www.instagram.com/kkawataki"
+              target="_blank"
+              rel="noreferrer"
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                "h-12 rounded-full bg-paper px-6 text-ink hover:bg-white dark:hover:bg-cream"
+              )}
+            >
+              <MessageCircle />
+              Message me on Instagram
+            </a>
+            <Link
+              href="/booking"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "lg" }),
+                "h-12 rounded-full border-paper/30 bg-transparent px-6 text-paper hover:bg-paper/10 hover:text-paper"
+              )}
+            >
+              Check availability
+              <ArrowRight />
+            </Link>
+          </div>
         </div>
       </section>
     </>

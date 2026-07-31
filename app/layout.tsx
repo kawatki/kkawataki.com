@@ -19,16 +19,16 @@ export const metadata: Metadata = {
     template: "%s · Rental Japanese Guy",
   },
   description:
-    "Book a Japanese local in Tokyo for four hours or longer, shaped around what you want to see, eat, learn, or talk about.",
+    "Book a flexible Japanese local as your guide, temporary homie, plus-one, cultural translator, or practical problem-solver in Tokyo.",
   openGraph: {
     title: "Rental Japanese Guy",
-    description: "Tokyo, without the tourist script.",
+    description: "Tokyo, with a Japanese guy on your side.",
     images: [{ url: "/og.png", width: 1731, height: 909 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Rental Japanese Guy",
-    description: "Tokyo, without the tourist script.",
+    description: "Tokyo, with a Japanese guy on your side.",
     images: ["/og.png"],
   },
 };
