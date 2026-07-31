@@ -366,15 +366,14 @@ export function BookingFlow({
         (day) => startOptions(day, result.pricing!).length
       )
       setSelectedDate((current) =>
-        !current
-          ? (firstAvailable?.date ?? "")
-          : result.days?.some(
-                (day) =>
-                  day.date === current &&
-                  startOptions(day, result.pricing!).length
-              )
-            ? current
-            : ""
+        current &&
+        result.days?.some(
+          (day) =>
+            day.date === current &&
+            startOptions(day, result.pricing!).length
+        )
+          ? current
+          : ""
       )
       const availableMonths = Array.from(
         new Set(result.days.map((day) => day.date.slice(0, 7)))
@@ -505,14 +504,7 @@ export function BookingFlow({
     if (!nextMonth) return
 
     setVisibleMonth(nextMonth)
-    setSelectedDate(
-      days.find(
-        (day) =>
-          day.date.startsWith(nextMonth) &&
-          pricing &&
-          startOptions(day, pricing).length
-      )?.date ?? ""
-    )
+    setSelectedDate("")
     setSelectedStart("")
     setSelectedEnd("")
   }
