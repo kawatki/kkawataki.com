@@ -111,6 +111,8 @@ const MESSAGING_OPTIONS: Array<{
   { label: "Discord", value: "discord" },
 ]
 
+const TURNSTILE_TOKEN_REFRESH_AFTER_MS = 4 * 60 * 1_000
+
 function yen(amount: number) {
   return `¥${amount.toLocaleString("en-US")}`
 }
@@ -300,6 +302,7 @@ export function BookingFlow({
   const [confirmationOpen, setConfirmationOpen] = useState(false)
   const [depositTermsAccepted, setDepositTermsAccepted] = useState(false)
   const [turnstileToken, setTurnstileToken] = useState("")
+  const [turnstileTokenCreatedAt, setTurnstileTokenCreatedAt] = useState(0)
   const [turnstileAttempt, setTurnstileAttempt] = useState(0)
   const [socialPlatform, setSocialPlatform] =
     useState<CustomerMessagingPlatform>("instagram")
@@ -314,6 +317,7 @@ export function BookingFlow({
   const guideHighlightTimerRef = useRef<number | null>(null)
   const handleTurnstileToken = useCallback((token: string) => {
     setTurnstileToken(token)
+    setTurnstileTokenCreatedAt(token ? Date.now() : 0)
   }, [])
 
   function guideToStep(
@@ -552,6 +556,7 @@ export function BookingFlow({
     setCheckoutError("")
     setDepositTermsAccepted(false)
     setTurnstileToken("")
+    setTurnstileTokenCreatedAt(0)
     setTurnstileAttempt((attempt) => attempt + 1)
     setConfirmationOpen(true)
   }
@@ -563,6 +568,19 @@ export function BookingFlow({
       !selectedPricing ||
       !turnstileToken
     ) return
+
+    if (
+      !turnstileTokenCreatedAt ||
+      Date.now() - turnstileTokenCreatedAt > TURNSTILE_TOKEN_REFRESH_AFTER_MS
+    ) {
+      setTurnstileToken("")
+      setTurnstileTokenCreatedAt(0)
+      setTurnstileAttempt((attempt) => attempt + 1)
+      setCheckoutError(
+        "The security check refreshed. Please wait for Success, then continue."
+      )
+      return
+    }
 
     setError("")
     setSubmitting(true)
@@ -612,6 +630,7 @@ export function BookingFlow({
           : message
       )
       setTurnstileToken("")
+      setTurnstileTokenCreatedAt(0)
       setTurnstileAttempt((attempt) => attempt + 1)
       setSubmitting(false)
     }
@@ -1173,6 +1192,7 @@ export function BookingFlow({
                 setCheckoutError("")
                 setDepositTermsAccepted(false)
                 setTurnstileToken("")
+                setTurnstileTokenCreatedAt(0)
               }
             }
           }}

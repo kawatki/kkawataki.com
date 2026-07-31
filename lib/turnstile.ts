@@ -28,6 +28,34 @@ function clientAddress(headers: Headers) {
   return headers.get("cf-connecting-ip")?.trim() || undefined
 }
 
+function normalizeHostname(hostname: string) {
+  return hostname
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/u, "")
+}
+
+function hostnameVariants(hostname: string) {
+  const normalized = normalizeHostname(hostname)
+  if (!normalized) return []
+  if (normalized.startsWith("www.")) {
+    return [normalized, normalized.slice(4)]
+  }
+  return [normalized, `www.${normalized}`]
+}
+
+function allowedHostnames(request: Request) {
+  const configuredHostnames = (process.env.TURNSTILE_ALLOWED_HOSTNAME || "")
+    .split(",")
+    .map(normalizeHostname)
+    .filter(Boolean)
+  const requestHostname = normalizeHostname(new URL(request.url).hostname)
+
+  return new Set(
+    [...configuredHostnames, requestHostname].flatMap(hostnameVariants)
+  )
+}
+
 export async function verifyTurnstile(
   token: unknown,
   request: Request
@@ -73,18 +101,15 @@ export async function verifyTurnstile(
   }
 
   const result = (await response.json()) as TurnstileResult
-  const allowedHostnames = (
-    process.env.TURNSTILE_ALLOWED_HOSTNAME ||
-    new URL(request.url).hostname
-  )
-    .split(",")
-    .map((hostname) => hostname.trim().toLowerCase())
-    .filter(Boolean)
+  const validHostnames = allowedHostnames(request)
+  const verifiedHostname =
+    typeof result.hostname === "string"
+      ? normalizeHostname(result.hostname)
+      : ""
   const testing = process.env.TURNSTILE_TESTING === "true"
   const hostnameMatches =
     testing ||
-    (typeof result.hostname === "string" &&
-      allowedHostnames.includes(result.hostname.toLowerCase()))
+    (verifiedHostname !== "" && validHostnames.has(verifiedHostname))
   const actionMatches =
     testing ||
     !result.action ||
