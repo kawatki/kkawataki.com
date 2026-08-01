@@ -14,6 +14,7 @@ const navigation = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
   { href: "/booking", label: "Booking" },
+  { href: "/request", label: "Request" },
 ]
 
 export function SiteHeader() {
