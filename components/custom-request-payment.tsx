@@ -166,7 +166,7 @@ export function CustomRequestPayment({
             maxLength={80}
             autoComplete="name"
             className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light"
-            placeholder="Keisuke or Taki"
+            placeholder="Your nickname, e.g. Taki"
           />
         </label>
         <label className="grid gap-2 text-sm font-semibold">
