@@ -12,13 +12,13 @@ export const DEPOSIT_PERCENT = 25
 export const DEPOSIT_TERMS_VERSION = "2026-07-30-v2"
 export const CHECKOUT_HOLD_MINUTES = 10
 export const STRIPE_CHECKOUT_EXPIRY_MINUTES = 30
-export const MINIMUM_NOTICE_HOURS = 24
 
 const DEFAULT_DAY_START = "09:00"
 const DEFAULT_DAY_END = "23:00"
 const DEFAULT_TRANSPORT_BUFFER_MINUTES = 60
 const DEFAULT_RATE_JPY_PER_30_MINUTES = 1_000
 const DEFAULT_BOOKING_MONTHS_AHEAD = 6
+const DEFAULT_MINIMUM_NOTICE_HOURS = 12
 
 export type BookingSlot = {
   date: string
@@ -194,6 +194,15 @@ export function bookingTransportBufferMinutes() {
     : DEFAULT_TRANSPORT_BUFFER_MINUTES
 }
 
+export function bookingMinimumNoticeHours() {
+  const configuredNotice = Number(process.env.BOOKING_MINIMUM_NOTICE_HOURS)
+  return Number.isInteger(configuredNotice) &&
+    configuredNotice >= 0 &&
+    configuredNotice <= 72
+    ? configuredNotice
+    : DEFAULT_MINIMUM_NOTICE_HOURS
+}
+
 function minutesToTime(minutes: number) {
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(
     minutes % 60
@@ -276,7 +285,8 @@ export function validateRequestedSlot(
   const slot = makeSlot(date, startTime, endTime)
   const parts = datePartsInTokyo(now)
   const today = `${parts.year}-${parts.month}-${parts.day}`
-  const earliest = now.getTime() + MINIMUM_NOTICE_HOURS * 60 * 60 * 1_000
+  const earliest =
+    now.getTime() + bookingMinimumNoticeHours() * 60 * 60 * 1_000
 
   if (
     date < today ||
@@ -292,7 +302,8 @@ export function generateCandidateSlots(now = new Date()) {
   const parts = datePartsInTokyo(now)
   const today = `${parts.year}-${parts.month}-${parts.day}`
   const lastDate = bookingWindowEnd(today)
-  const earliest = now.getTime() + MINIMUM_NOTICE_HOURS * 60 * 60 * 1_000
+  const earliest =
+    now.getTime() + bookingMinimumNoticeHours() * 60 * 60 * 1_000
   const { end, start } = bookingDayHours()
   const endMinutes = timeToMinutes(end)
   const slots: BookingSlot[] = []
