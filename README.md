@@ -63,6 +63,46 @@ For Cloudflare Turnstile:
 Turnstile tokens are validated server-side, checked for the `checkout` action
 and expected hostname, and cannot be reused.
 
+For BTC custom requests:
+
+1. Put the on-chain BTC receiving address into `BTC_RECEIVING_ADDRESS`.
+2. Keep `BTC_MIN_AMOUNT_BTC=0.01` unless the BTC starting amount changes.
+3. Keep `BTC_EXPLORER_API_URL=https://blockstream.info/api` unless you use a
+   different Esplora-compatible Bitcoin explorer.
+4. Set `CRON_SECRET` to a long random value.
+5. Schedule a request every 30-60 minutes to clean up expired unpaid booking
+   holds:
+
+   ```bash
+   curl -H "Authorization: Bearer $CRON_SECRET" \
+     https://your-domain.example/api/cron/cleanup-booking-holds
+   ```
+
+6. Schedule a daily request to clean up unpaid pending BTC tasks:
+
+   ```bash
+   curl -H "Authorization: Bearer $CRON_SECRET" \
+     https://your-domain.example/api/cron/cleanup-btc-requests
+   ```
+
+BTC request generation creates a transparent private calendar item marked
+`btcRequestStatus=pending`. It is not a confirmed booking. Expired pending
+items are deleted by the cleanup endpoint after `BTC_PENDING_REQUEST_TTL_HOURS`
+hours. After sending BTC, the customer can paste a Bitcoin transaction ID into
+the request page. `/api/request-payment/btc/verify` checks the ledger for an
+output to `BTC_RECEIVING_ADDRESS` of at least the expected BTC amount, then
+marks the task `btcRequestStatus=paid_unconfirmed` or
+`btcRequestStatus=success` depending on confirmations. Confirm actual bookings
+manually only after BTC is received.
+The default pending TTL is 2 hours; requests with a seen transaction are kept
+as `paid_unconfirmed` instead of being treated as unpaid noise.
+
+Booking checkout creates a temporary calendar hold marked `bookingState=hold`.
+Stripe webhook confirmation updates successful bookings to
+`bookingState=confirmed`. Expired unpaid holds stop blocking availability
+immediately. `/api/cron/cleanup-booking-holds` deletes expired holds and any
+pending hold that overlaps a real, non-hold calendar event.
+
 Start the site:
 
 ```bash

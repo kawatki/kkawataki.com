@@ -5,6 +5,10 @@ import type {
   BookingSlot,
   MessagingPlatform,
 } from "@/lib/booking"
+import type {
+  BtcCustomRequestPayment,
+  BtcPaymentConfig,
+} from "@/lib/custom-request"
 import {
   bookingTransportBufferMinutes,
   BOOKING_TIME_ZONE,
@@ -196,6 +200,36 @@ function shiftIsoTime(value: string, minutes: number) {
   ).toISOString()
 }
 
+function dateInTokyo(value = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: BOOKING_TIME_ZONE,
+    year: "numeric",
+  }).format(value)
+}
+
+function addDays(date: string, days: number) {
+  const parsed = new Date(`${date}T00:00:00+09:00`)
+  parsed.setUTCDate(parsed.getUTCDate() + days)
+  return dateInTokyo(parsed)
+}
+
+function shiftIsoFromNow(hours: number) {
+  return new Date(Date.now() + hours * 60 * 60 * 1_000).toISOString()
+}
+
+function btc(amount: number) {
+  return `${amount.toLocaleString("en-US", {
+    maximumFractionDigits: 8,
+    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+  })} BTC`
+}
+
+function appendDescriptionLine(description: string | undefined, line: string) {
+  return [description?.trim(), line].filter(Boolean).join("\n")
+}
+
 function holdBody(
   slot: BookingSlot,
   request: BookingRequest,
@@ -273,7 +307,11 @@ export async function listAvailableSlots(candidates: BookingSlot[]) {
       properties.bookingState === "hold" &&
       Number(properties.holdExpiresAt || 0) <= Math.floor(now / 1_000)
 
-    if (event.status === "cancelled" || isExpiredHold) {
+    if (
+      event.status === "cancelled" ||
+      isExpiredHold ||
+      properties.bookingState === "expired"
+    ) {
       return []
     }
 
@@ -380,8 +418,9 @@ export async function acquireSlot(
 
   const properties = bookingProperties(existing)
   const expired =
-    properties.bookingState === "hold" &&
-    Number(properties.holdExpiresAt || 0) <= Math.floor(Date.now() / 1_000)
+    properties.bookingState === "expired" ||
+    (properties.bookingState === "hold" &&
+      Number(properties.holdExpiresAt || 0) <= Math.floor(Date.now() / 1_000))
 
   if (!expired || !existing.etag) {
     throw new SlotUnavailableError()
@@ -456,9 +495,275 @@ export async function attachCheckoutSession(
 export async function expireHold(eventId: string, holdToken: string) {
   await patchPrivateProperties(
     eventId,
-    { holdExpiresAt: String(Math.floor(Date.now() / 1_000) - 1) },
+    {
+      holdExpiresAt: String(Math.floor(Date.now() / 1_000) - 1),
+    },
     { holdToken }
   )
+}
+
+export async function deleteExpiredBookingHolds() {
+  const now = Math.floor(Date.now() / 1_000)
+  const events: GoogleEvent[] = []
+  let pageToken: string | undefined
+
+  do {
+    const result = await googleRequest<GoogleEventList>(
+      calendarUrl("", {
+        maxResults: "2500",
+        orderBy: "startTime",
+        pageToken: pageToken ?? "",
+        showDeleted: "false",
+        singleEvents: "true",
+        timeMax: shiftIsoFromNow(24 * 370),
+        timeMin: shiftIsoFromNow(-24 * 30),
+        timeZone: BOOKING_TIME_ZONE,
+      })
+    )
+    events.push(...(result?.items ?? []))
+    pageToken = result?.nextPageToken
+  } while (pageToken)
+
+  const holds = events.filter((event) => {
+    const properties = bookingProperties(event)
+    return event.id && properties.bookingState === "hold"
+  })
+  const realEvents = events.flatMap((event) => {
+    const properties = bookingProperties(event)
+    if (
+      event.status === "cancelled" ||
+      properties.bookingState === "hold" ||
+      properties.bookingState === "expired"
+    ) {
+      return []
+    }
+    const start = eventTime(event.start)
+    const end = eventTime(event.end)
+    return Number.isFinite(start) && Number.isFinite(end)
+      ? [{ end, id: event.id, start }]
+      : []
+  })
+
+  const stale = holds.filter((hold) => {
+    const properties = bookingProperties(hold)
+    const holdStart = eventTime(hold.start)
+    const holdEnd = eventTime(hold.end)
+    const isExpired = Number(properties.holdExpiresAt || 0) <= now
+    const overlapsRealEvent =
+      Number.isFinite(holdStart) &&
+      Number.isFinite(holdEnd) &&
+      realEvents.some(
+        (event) =>
+          hold.id !== event.id && holdStart < event.end && holdEnd > event.start
+      )
+
+    return isExpired || overlapsRealEvent
+  })
+
+  await Promise.all(
+    stale.map((event) =>
+      googleRequest<null>(
+        calendarUrl(`/${encodeURIComponent(event.id ?? "")}`),
+        { method: "DELETE" },
+        [404, 410]
+      )
+    )
+  )
+
+  return { deleted: stale.length }
+}
+
+export async function createBtcCustomRequestTodo(input: {
+  btc: BtcPaymentConfig
+  request: BtcCustomRequestPayment
+  requestReference: string
+}) {
+  const today = dateInTokyo()
+  const tomorrow = addDays(today, 1)
+  const expiresAt = Math.floor(
+    Date.now() / 1_000 + input.btc.pendingRequestTtlHours * 60 * 60
+  )
+  const description = [
+    [
+      `Request reference: ${input.requestReference}`,
+      "Payment method: BTC",
+      "Status: pending",
+      "This is not a confirmed booking. Confirm only after BTC payment is received.",
+      `Agreed amount: ${btc(input.request.amountBtc)}`,
+      `BTC network: ${input.btc.network}`,
+      `BTC receiving address: ${input.btc.address}`,
+      `Confirmations required: ${input.btc.confirmationsRequired}`,
+      `Pending request expires at: ${new Date(expiresAt * 1_000).toISOString()}`,
+    ],
+    [
+      `Customer: ${input.request.name}`,
+      `Email: ${input.request.email}`,
+      `Request: ${input.request.requestTitle}`,
+      ...(input.request.notes ? [`Notes: ${input.request.notes}`] : []),
+    ],
+    [
+      "Customer instructions: pay the exact BTC amount and include/send this reference in messages.",
+      "BTC positioning: for people who want to use Bitcoin as real-world peer-to-peer money; card remains the normal pricing path.",
+      `Refund policy: ${input.btc.refundPolicy}`,
+    ],
+  ]
+    .map((section) => section.join("\n"))
+    .join("\n\n")
+
+  await googleRequest<GoogleEvent>(calendarUrl(), {
+    body: JSON.stringify({
+      description,
+      end: { date: tomorrow },
+      extendedProperties: {
+        private: {
+          amountBtc: String(input.request.amountBtc),
+          btcRequestExpiresAt: String(expiresAt),
+          btcRequestStatus: "pending",
+          customRequestTermsAccepted: "true",
+          customerEmail: input.request.email,
+          customerName: input.request.name,
+          paymentMethod: "btc",
+          paymentStatus: "pending",
+          requestNotes: input.request.notes,
+          requestReference: input.requestReference,
+          requestTitle: input.request.requestTitle,
+        },
+      },
+      start: { date: today },
+      status: "confirmed",
+      summary: `Task: BTC payment pending - ${input.request.requestTitle}`,
+      transparency: "transparent",
+      visibility: "private",
+    }),
+    method: "POST",
+  })
+}
+
+export async function deleteExpiredBtcCustomRequestTodos() {
+  const now = Math.floor(Date.now() / 1_000)
+  const result = await googleRequest<GoogleEventList>(
+    calendarUrl("", {
+      maxResults: "250",
+      orderBy: "startTime",
+      privateExtendedProperty: "paymentMethod=btc",
+      showDeleted: "false",
+      singleEvents: "true",
+      timeMax: shiftIsoFromNow(24),
+      timeMin: shiftIsoFromNow(-24 * 30),
+      timeZone: BOOKING_TIME_ZONE,
+    })
+  )
+
+  const expired = (result?.items ?? []).filter((event) => {
+    const properties = bookingProperties(event)
+    return (
+      event.id &&
+      properties.btcRequestStatus === "pending" &&
+      Number(properties.btcRequestExpiresAt || 0) <= now
+    )
+  })
+
+  await Promise.all(
+    expired.map((event) =>
+      googleRequest<null>(
+        calendarUrl(`/${encodeURIComponent(event.id ?? "")}`),
+        { method: "DELETE" },
+        [404, 410]
+      )
+    )
+  )
+
+  return { deleted: expired.length }
+}
+
+async function findBtcCustomRequestEvent(reference: string) {
+  const result = await googleRequest<GoogleEventList>(
+    calendarUrl("", {
+      maxResults: "10",
+      privateExtendedProperty: `requestReference=${reference}`,
+      showDeleted: "false",
+      singleEvents: "true",
+    })
+  )
+
+  return (result?.items ?? []).find((candidate) => {
+    const properties = bookingProperties(candidate)
+    return (
+      candidate.id &&
+      candidate.status !== "cancelled" &&
+      properties.paymentMethod === "btc" &&
+      properties.requestReference === reference &&
+      ["paid_unconfirmed", "pending", "success"].includes(
+        properties.btcRequestStatus ?? ""
+      )
+    )
+  })
+}
+
+export async function findBtcCustomRequestPayment(reference: string) {
+  const event = await findBtcCustomRequestEvent(reference)
+  const properties = event ? bookingProperties(event) : {}
+  const amountBtc = Number(properties.amountBtc)
+  if (!event?.id || !Number.isFinite(amountBtc)) {
+    return null
+  }
+
+  return {
+    amountBtc,
+    status: properties.btcRequestStatus ?? "pending",
+  }
+}
+
+export async function updateBtcCustomRequestPayment(input: {
+  confirmations: number
+  paidAt: number
+  reference: string
+  status: "paid_unconfirmed" | "success"
+  txid: string
+}) {
+  const event = await findBtcCustomRequestEvent(input.reference)
+  if (!event?.id) {
+    return { updated: false as const }
+  }
+
+  const properties = bookingProperties(event)
+  if (properties.btcRequestStatus === "success") {
+    return { alreadySuccess: true as const, updated: true as const }
+  }
+
+  await googleRequest<GoogleEvent>(
+    calendarUrl(`/${encodeURIComponent(event.id)}`),
+    {
+      body: JSON.stringify({
+        description: appendDescriptionLine(
+          event.description,
+          [
+            "",
+            `BTC transaction: ${input.txid}`,
+            `BTC confirmations: ${input.confirmations}`,
+            `BTC status: ${input.status}`,
+          ].join("\n")
+        ),
+        extendedProperties: {
+          private: {
+            ...properties,
+            btcConfirmations: String(input.confirmations),
+            btcPaidAt: String(input.paidAt),
+            btcRequestStatus: input.status,
+            btcTxid: input.txid,
+            paymentStatus: input.status,
+          },
+        },
+        summary:
+          input.status === "success"
+            ? `Task: BTC payment confirmed - ${properties.requestTitle ?? input.reference}`
+            : `Task: BTC payment seen - ${properties.requestTitle ?? input.reference}`,
+      }),
+      method: "PATCH",
+    }
+  )
+
+  return { updated: true as const }
 }
 
 export async function confirmPaidBooking(input: {
@@ -537,7 +842,10 @@ export async function confirmPaidBooking(input: {
 
   const markedPaid = await patchPrivateProperties(
     input.eventId,
-    { bookingState: "paid", stripeSessionId: input.sessionId },
+    {
+      bookingState: "paid",
+      stripeSessionId: input.sessionId,
+    },
     { stripeSessionId: input.sessionId }
   )
   if (!markedPaid) {

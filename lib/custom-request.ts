@@ -1,6 +1,8 @@
 export const CUSTOM_REQUEST_TERMS_VERSION = "2026-07-31-v1"
 export const CUSTOM_REQUEST_MIN_AMOUNT_JPY = 100
 export const CUSTOM_REQUEST_MAX_AMOUNT_JPY = 300_000
+export const CUSTOM_REQUEST_MIN_AMOUNT_BTC = 0.01
+export const CUSTOM_REQUEST_MAX_AMOUNT_BTC = 100
 
 export type CustomRequestPayment = {
   amountJpy: number
@@ -9,6 +11,20 @@ export type CustomRequestPayment = {
   notes: string
   requestTitle: string
   termsAccepted: boolean
+}
+
+export type BtcCustomRequestPayment = Omit<CustomRequestPayment, "amountJpy"> & {
+  amountBtc: number
+}
+
+export type BtcPaymentConfig = {
+  address: string
+  confirmationsRequired: string
+  explorerApiUrl: string
+  minAmountBtc: number
+  network: string
+  pendingRequestTtlHours: number
+  refundPolicy: string
 }
 
 export function createCustomRequestReference() {
@@ -77,5 +93,71 @@ export function parseCustomRequestPayment(value: unknown): CustomRequestPayment 
     notes,
     requestTitle,
     termsAccepted,
+  }
+}
+
+export function parseBtcCustomRequestPayment(
+  value: unknown,
+  minAmountBtc = CUSTOM_REQUEST_MIN_AMOUNT_BTC
+): BtcCustomRequestPayment {
+  if (!value || typeof value !== "object") {
+    throw new Error("Please complete the custom request form.")
+  }
+
+  const input = value as Record<string, unknown>
+  const parsed = parseCustomRequestPayment({
+    ...input,
+    amountJpy: CUSTOM_REQUEST_MIN_AMOUNT_JPY,
+  })
+  const amountBtc =
+    typeof input.amountBtc === "number"
+      ? input.amountBtc
+      : typeof input.amountBtc === "string"
+        ? Number(input.amountBtc.trim())
+        : Number.NaN
+
+  if (
+    !Number.isFinite(amountBtc) ||
+    amountBtc < minAmountBtc ||
+    amountBtc > CUSTOM_REQUEST_MAX_AMOUNT_BTC
+  ) {
+    throw new Error(
+      `Enter a BTC amount between ${minAmountBtc} BTC and ${CUSTOM_REQUEST_MAX_AMOUNT_BTC} BTC.`
+    )
+  }
+
+  return {
+    amountBtc,
+    email: parsed.email,
+    name: parsed.name,
+    notes: parsed.notes,
+    requestTitle: parsed.requestTitle,
+    termsAccepted: parsed.termsAccepted,
+  }
+}
+
+export function getBtcPaymentConfig(): BtcPaymentConfig {
+  const minAmountBtc = Number(process.env.BTC_MIN_AMOUNT_BTC?.trim())
+  const pendingRequestTtlHours = Number(
+    process.env.BTC_PENDING_REQUEST_TTL_HOURS?.trim()
+  )
+  return {
+    address: process.env.BTC_RECEIVING_ADDRESS?.trim() ?? "",
+    confirmationsRequired:
+      process.env.BTC_CONFIRMATIONS_REQUIRED?.trim() || "1",
+    explorerApiUrl:
+      process.env.BTC_EXPLORER_API_URL?.trim() ||
+      "https://blockstream.info/api",
+    minAmountBtc: Number.isFinite(minAmountBtc)
+      ? minAmountBtc
+      : CUSTOM_REQUEST_MIN_AMOUNT_BTC,
+    network: process.env.BTC_PAYMENT_NETWORK?.trim() || "Bitcoin mainnet",
+    pendingRequestTtlHours:
+      Number.isFinite(pendingRequestTtlHours) && pendingRequestTtlHours > 0
+        ? pendingRequestTtlHours
+        : 2,
+    refundPolicy:
+      process.env.BTC_REFUND_POLICY?.trim() ||
+      "If the rental does not happen, I will refund the BTC received in full, excluding the Bitcoin network/remittance fee.",
   }
 }
