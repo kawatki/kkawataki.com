@@ -33,6 +33,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { TurnstileWidget } from "@/components/turnstile-widget"
+import { WHATSAPP_COUNTRY_CODES } from "@/lib/whatsapp-country-codes"
 
 type AvailabilityDay = {
   availableTimes: string[]
@@ -110,16 +111,6 @@ const MESSAGING_OPTIONS: Array<{
   { label: "WhatsApp", value: "whatsapp" },
   { label: "Discord", value: "discord" },
 ]
-
-const WHATSAPP_COUNTRY_CODES = [
-  { code: "+81", label: "JP +81", localExample: "90 1234 5678" },
-  { code: "+1", label: "US +1", localExample: "555 123 4567" },
-  { code: "+44", label: "UK +44", localExample: "7700 900123" },
-  { code: "+61", label: "AU +61", localExample: "412 345 678" },
-  { code: "+65", label: "SG +65", localExample: "8123 4567" },
-  { code: "+82", label: "KR +82", localExample: "10 1234 5678" },
-  { code: "+886", label: "TW +886", localExample: "912 345 678" },
-] as const
 
 const TURNSTILE_TOKEN_REFRESH_AFTER_MS = 4 * 60 * 1_000
 
@@ -369,10 +360,6 @@ export function BookingFlow({
     socialPlatform === "whatsapp" && whatsAppDigits
       ? `${whatsAppCountryCode}${whatsAppDigits.replace(/^0+/u, "")}`
       : ""
-  const whatsAppCountry =
-    WHATSAPP_COUNTRY_CODES.find(
-      (country) => country.code === whatsAppCountryCode
-    ) ?? WHATSAPP_COUNTRY_CODES[0]
   const [guidedStep, setGuidedStep] = useState<1 | 2 | 3 | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const calendarSectionRef = useRef<HTMLElement>(null)
@@ -1261,7 +1248,7 @@ export function BookingFlow({
                       setWhatsAppLocalNumber(event.target.value)
                     }
                     className="h-13 rounded-xl border border-paper/25 bg-paper/10 px-4 text-base font-normal text-paper outline-none placeholder:text-paper/35 transition focus:border-[#76A99B] focus:ring-2 focus:ring-[#79AA9C]/30"
-                    placeholder={whatsAppCountry.localExample}
+                    placeholder="Phone"
                   />
                 </div>
                 <input
