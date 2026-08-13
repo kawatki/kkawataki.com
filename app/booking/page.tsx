@@ -18,9 +18,14 @@ const bookingFacts = [
 export default async function BookingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ payment?: string }>
+  searchParams: Promise<{
+    booking_event_id?: string
+    cancel_token?: string
+    payment?: string
+  }>
 }) {
-  const { payment } = await searchParams
+  const { booking_event_id: bookingEventId, cancel_token: cancelToken, payment } =
+    await searchParams
 
   return (
     <>
@@ -55,6 +60,8 @@ export default async function BookingPage({
 
       <section className="page-shell py-10 sm:py-16">
         <BookingFlow
+          bookingEventId={bookingEventId}
+          cancelToken={cancelToken}
           paymentCancelled={payment === "cancelled"}
           turnstileSiteKey={process.env.TURNSTILE_SITE_KEY?.trim() ?? ""}
         />

@@ -1,7 +1,10 @@
 import type Stripe from "stripe"
 
 import { getBookingPricing } from "@/lib/booking"
-import { confirmPaidBooking } from "@/lib/google-calendar"
+import {
+  confirmPaidBooking,
+  deleteHoldByStripeSession,
+} from "@/lib/google-calendar"
 import { requiredEnv } from "@/lib/server-config"
 import { getStripe, getStripeCryptoProvider } from "@/lib/stripe"
 
@@ -92,6 +95,24 @@ async function fulfillCheckout(
   }
 }
 
+async function expireCheckoutHold(session: Stripe.Checkout.Session) {
+  if (session.status !== "expired") {
+    return
+  }
+
+  const metadata = session.metadata ?? {}
+  if (metadata.custom_request_terms_accepted || metadata.package_checkout) {
+    return
+  }
+
+  const eventId = metadata.booking_event_id
+  if (!eventId) {
+    return
+  }
+
+  await deleteHoldByStripeSession(eventId, session.id)
+}
+
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature")
   if (!signature) {
@@ -117,6 +138,8 @@ export async function POST(request: Request) {
   try {
     if (event.type === "checkout.session.completed") {
       await fulfillCheckout(event.data.object, event.created)
+    } else if (event.type === "checkout.session.expired") {
+      await expireCheckoutHold(event.data.object)
     }
     return Response.json({ received: true })
   } catch (error) {

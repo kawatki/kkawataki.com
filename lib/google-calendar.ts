@@ -235,6 +235,7 @@ function holdBody(
   request: BookingRequest,
   expiresAt: number,
   holdToken: string,
+  cancelToken: string,
   bookingReference: string,
   stripeSessionId = ""
 ) {
@@ -250,6 +251,7 @@ function holdBody(
       private: {
         bookingReference,
         bookingState: "hold",
+        cancelToken,
         customerEmail: request.email,
         customerName: request.name,
         holdExpiresAt: String(expiresAt),
@@ -385,6 +387,7 @@ export async function acquireSlot(
   request: BookingRequest,
   expiresAt: number,
   holdToken: string,
+  cancelToken: string,
   bookingReference: string
 ) {
   const [available] = await listAvailableSlots([slot])
@@ -398,6 +401,7 @@ export async function acquireSlot(
     request,
     expiresAt,
     holdToken,
+    cancelToken,
     bookingReference
   )
 
@@ -500,6 +504,45 @@ export async function expireHold(eventId: string, holdToken: string) {
     },
     { holdToken }
   )
+}
+
+async function deleteHold(
+  eventId: string,
+  expected: Record<string, string>
+) {
+  const event = await getEvent(eventId)
+  if (!event?.etag) {
+    return false
+  }
+
+  const properties = bookingProperties(event)
+  if (
+    properties.bookingState !== "hold" ||
+    Object.entries(expected).some(([key, value]) => properties[key] !== value)
+  ) {
+    return false
+  }
+
+  await googleRequest<null>(
+    calendarUrl(`/${encodeURIComponent(eventId)}`),
+    {
+      headers: { "if-match": event.etag },
+      method: "DELETE",
+    },
+    [404, 410]
+  )
+  return true
+}
+
+export function deleteHoldByCancelToken(eventId: string, cancelToken: string) {
+  return deleteHold(eventId, { cancelToken })
+}
+
+export function deleteHoldByStripeSession(
+  eventId: string,
+  stripeSessionId: string
+) {
+  return deleteHold(eventId, { stripeSessionId })
 }
 
 export async function deleteExpiredBookingHolds() {

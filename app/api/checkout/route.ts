@@ -74,6 +74,7 @@ export async function POST(request: Request) {
 
   let slotId: string | undefined
   let holdToken: string | undefined
+  let cancelToken: string | undefined
 
   try {
     const input = await request.json()
@@ -112,6 +113,7 @@ export async function POST(request: Request) {
     const bookingReference = createBookingReference()
     slotId = slot.id
     holdToken = crypto.randomUUID()
+    cancelToken = crypto.randomUUID()
 
     // Stripe requires Checkout Sessions to remain open for at least 30 minutes.
     // The calendar hold is intentionally shorter; a late payment is refunded.
@@ -125,13 +127,19 @@ export async function POST(request: Request) {
       booking,
       holdExpiresAt,
       holdToken,
+      cancelToken,
       bookingReference
     )
 
     const stripe = getStripe()
     const origin = new URL(request.url).origin
+    const cancelUrl = new URL("/booking/", origin)
+    cancelUrl.searchParams.set("payment", "cancelled")
+    cancelUrl.searchParams.set("booking_event_id", slot.id)
+    cancelUrl.searchParams.set("cancel_token", cancelToken)
+
     const session = await stripe.checkout.sessions.create({
-      cancel_url: `${origin}/booking/?payment=cancelled`,
+      cancel_url: cancelUrl.toString(),
       customer_email: booking.email,
       custom_text: {
         submit: {

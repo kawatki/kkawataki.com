@@ -319,9 +319,13 @@ function StepLabel({
 }
 
 export function BookingFlow({
+  bookingEventId = "",
+  cancelToken = "",
   paymentCancelled = false,
   turnstileSiteKey,
 }: {
+  bookingEventId?: string
+  cancelToken?: string
   paymentCancelled?: boolean
   turnstileSiteKey: string
 }) {
@@ -356,6 +360,7 @@ export function BookingFlow({
   const guideDateDoneRef = useRef(false)
   const guideFormDoneRef = useRef(false)
   const guideHighlightTimerRef = useRef<number | null>(null)
+  const cancelCleanupDoneRef = useRef(false)
   const handleTurnstileToken = useCallback((token: string) => {
     setTurnstileToken(token)
     setTurnstileTokenCreatedAt(token ? Date.now() : 0)
@@ -470,6 +475,32 @@ export function BookingFlow({
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (
+      !paymentCancelled ||
+      !bookingEventId ||
+      !cancelToken ||
+      cancelCleanupDoneRef.current
+    ) {
+      return
+    }
+
+    cancelCleanupDoneRef.current = true
+    void (async () => {
+      try {
+        await fetch("/api/checkout/cancel", {
+          body: JSON.stringify({ bookingEventId, cancelToken }),
+          headers: { "content-type": "application/json" },
+          method: "POST",
+        })
+      } catch (cancelError) {
+        console.error("Could not release cancelled booking hold", cancelError)
+      } finally {
+        await loadAvailability()
+      }
+    })()
+  }, [bookingEventId, cancelToken, paymentCancelled])
 
   const activeDay = useMemo(
     () => days.find((day) => day.date === selectedDate),

@@ -46,7 +46,7 @@ For Stripe test mode:
 2. Run a local webhook forwarder:
 
    ```bash
-   stripe listen --events checkout.session.completed \
+   stripe listen --events checkout.session.completed,checkout.session.expired \
      --forward-to localhost:3000/api/stripe/webhook/
    ```
 
@@ -99,9 +99,12 @@ as `paid_unconfirmed` instead of being treated as unpaid noise.
 
 Booking checkout creates a temporary calendar hold marked `bookingState=hold`.
 Stripe webhook confirmation updates successful bookings to
-`bookingState=confirmed`. Expired unpaid holds stop blocking availability
+`bookingState=confirmed`. If the customer returns from Stripe's cancel flow, the
+booking page immediately releases the matching unpaid hold. Stripe's
+`checkout.session.expired` webhook also releases abandoned unpaid holds when the
+hosted Checkout Session expires. Expired unpaid holds stop blocking availability
 immediately. `/api/cron/cleanup-booking-holds` deletes expired holds and any
-pending hold that overlaps a real, non-hold calendar event.
+pending hold that overlaps a real, non-hold calendar event as a backup.
 
 Start the site:
 
@@ -120,8 +123,9 @@ Register this webhook endpoint in Stripe test mode:
 https://rental-japanese-guy.kkawataki.chatgpt.site/api/stripe/webhook/
 ```
 
-Subscribe it to `checkout.session.completed`, then store its signing secret and
-the remaining server variables in the hosting environment before publishing.
+Subscribe it to `checkout.session.completed` and `checkout.session.expired`,
+then store its signing secret and the remaining server variables in the hosting
+environment before publishing.
 
 Disable the old public Google Appointment Schedule after this flow is live.
 Otherwise somebody who knows its direct Google URL can still bypass Stripe.
