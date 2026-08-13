@@ -445,7 +445,7 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   }
   if (
     socialPlatform === "whatsapp" &&
-    !/^\+?[0-9 ()-]{7,30}$/u.test(socialHandle)
+    !/^\+[1-9]\d{7,14}$/u.test(socialHandle)
   ) {
     throw new Error("Enter a valid WhatsApp phone number.")
   }
