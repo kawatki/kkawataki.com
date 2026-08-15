@@ -1,8 +1,8 @@
 import { getBtcPaymentConfig } from "@/lib/custom-request"
 import {
-  findBtcCustomRequestPayment,
-  updateBtcCustomRequestPayment,
-} from "@/lib/google-calendar"
+  findBtcCustomRequestPaymentTask,
+  updateBtcCustomRequestPaymentTask,
+} from "@/lib/google-tasks"
 import {
   checkRateLimit,
   rateLimitedResponse,
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
     if (!btc.address) {
       throw new ConfigurationError("BTC_RECEIVING_ADDRESS")
     }
-    const pendingRequest = await findBtcCustomRequestPayment(reference)
+    const pendingRequest = await findBtcCustomRequestPaymentTask(reference)
     if (!pendingRequest) {
       return Response.json(
         { error: "Pending BTC request was not found." },
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
     const status =
       confirmations >= requiredConfirmations ? "success" : "paid_unconfirmed"
 
-    await updateBtcCustomRequestPayment({
+    await updateBtcCustomRequestPaymentTask({
       confirmations,
       paidAt:
         transaction.status?.block_time ??

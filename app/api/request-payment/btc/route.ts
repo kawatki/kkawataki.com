@@ -7,7 +7,7 @@ import {
   checkRateLimit,
   rateLimitedResponse,
 } from "@/lib/rate-limit"
-import { createBtcCustomRequestTodo } from "@/lib/google-calendar"
+import { createBtcCustomRequestTask } from "@/lib/google-tasks"
 import { ConfigurationError } from "@/lib/server-config"
 import {
   TurnstileVerificationError,
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     )
 
     const requestReference = createCustomRequestReference()
-    await createBtcCustomRequestTodo({
+    await createBtcCustomRequestTask({
       btc,
       request: customRequest,
       requestReference,

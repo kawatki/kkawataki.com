@@ -5,6 +5,7 @@ import {
   confirmPaidBooking,
   deleteHoldByStripeSession,
 } from "@/lib/google-calendar"
+import { createStripeCustomRequestTask } from "@/lib/google-tasks"
 import { requiredEnv } from "@/lib/server-config"
 import { getStripe, getStripeCryptoProvider } from "@/lib/stripe"
 
@@ -36,6 +37,14 @@ async function fulfillCheckout(
   }
 
   const metadata = session.metadata ?? {}
+  if (metadata.custom_request_terms_accepted) {
+    await fulfillCustomRequestCheckout(session, paidAt)
+    return
+  }
+  if (metadata.package_checkout) {
+    return
+  }
+
   const hasVariablePricing = Boolean(metadata.booking_duration_minutes)
   const durationMinutes = Number(
     metadata.booking_duration_minutes ?? 4 * 60
@@ -93,6 +102,41 @@ async function fulfillCheckout(
   if ("conflict" in result) {
     await refundConflictingPayment(session)
   }
+}
+
+async function fulfillCustomRequestCheckout(
+  session: Stripe.Checkout.Session,
+  paidAt: number
+) {
+  const metadata = session.metadata ?? {}
+  const amountJpy = Number(metadata.amount_jpy)
+  const email = session.customer_details?.email ?? session.customer_email
+
+  if (
+    session.currency !== "jpy" ||
+    session.amount_total !== amountJpy ||
+    !Number.isInteger(amountJpy) ||
+    !email ||
+    !metadata.customer_name ||
+    !metadata.request_reference ||
+    !metadata.request_title
+  ) {
+    throw new Error("Paid custom request Checkout Session is missing metadata.")
+  }
+
+  await createStripeCustomRequestTask({
+    paidAt,
+    request: {
+      amountJpy,
+      email,
+      name: metadata.customer_name,
+      notes: metadata.request_notes ?? "",
+      requestTitle: metadata.request_title,
+      termsAccepted: true,
+    },
+    requestReference: metadata.request_reference,
+    sessionId: session.id,
+  })
 }
 
 async function expireCheckoutHold(session: Stripe.Checkout.Session) {

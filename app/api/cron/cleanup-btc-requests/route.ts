@@ -1,4 +1,4 @@
-import { deleteExpiredBtcCustomRequestTodos } from "@/lib/google-calendar"
+import { deleteExpiredBtcCustomRequestTasks } from "@/lib/google-tasks"
 import { ConfigurationError, requiredEnv } from "@/lib/server-config"
 
 function cronAuthorized(request: Request) {
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
       return Response.json({ error: "Unauthorized." }, { status: 401 })
     }
 
-    const result = await deleteExpiredBtcCustomRequestTodos()
+    const result = await deleteExpiredBtcCustomRequestTasks()
     return Response.json({ ok: true, ...result })
   } catch (error) {
     if (error instanceof ConfigurationError) {

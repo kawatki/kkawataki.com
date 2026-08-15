@@ -39,6 +39,21 @@ For Google Calendar:
    account email and grant **Make changes to events**.
 6. Put that calendar's ID into `GOOGLE_CALENDAR_ID`.
 
+For Google Tasks custom-request to-do items:
+
+1. Enable **Google Tasks API** in the same Google Cloud project.
+2. For a personal Gmail account, create OAuth credentials, authorize the
+   `https://www.googleapis.com/auth/tasks` scope once, then put the OAuth
+   client ID, client secret, and refresh token into
+   `GOOGLE_TASKS_OAUTH_CLIENT_ID`, `GOOGLE_TASKS_OAUTH_CLIENT_SECRET`, and
+   `GOOGLE_TASKS_REFRESH_TOKEN`.
+3. For Google Workspace only, you may instead grant the service account
+   domain-wide delegation for `https://www.googleapis.com/auth/tasks`, then put
+   the target user into `GOOGLE_TASKS_IMPERSONATED_USER_EMAIL`.
+4. Optional: set `GOOGLE_TASKS_LIST_TITLE`. If omitted, the site creates or
+   reuses a task list named `Rental Japanese Guy`.
+5. Optional: set `GOOGLE_TASKS_LIST_ID` to force an existing task list.
+
 For Stripe test mode:
 
 1. Put the test secret key into `STRIPE_SECRET_KEY`. The publishable key is not
@@ -85,15 +100,16 @@ For BTC custom requests:
      https://your-domain.example/api/cron/cleanup-btc-requests
    ```
 
-BTC request generation creates a transparent private calendar item marked
-`btcRequestStatus=pending`. It is not a confirmed booking. Expired pending
-items are deleted by the cleanup endpoint after `BTC_PENDING_REQUEST_TTL_HOURS`
-hours. After sending BTC, the customer can paste a Bitcoin transaction ID into
-the request page. `/api/request-payment/btc/verify` checks the ledger for an
-output to `BTC_RECEIVING_ADDRESS` of at least the expected BTC amount, then
-marks the task `btcRequestStatus=paid_unconfirmed` or
-`btcRequestStatus=success` depending on confirmations. Confirm actual bookings
-manually only after BTC is received.
+BTC request generation creates a real Google Tasks to-do item marked pending.
+It is not a confirmed booking. Expired pending tasks are deleted by the cleanup
+endpoint after `BTC_PENDING_REQUEST_TTL_HOURS` hours. After sending BTC, the
+customer can paste a Bitcoin transaction ID into the request page.
+`/api/request-payment/btc/verify` checks the ledger for an output to
+`BTC_RECEIVING_ADDRESS` of at least the expected BTC amount, then updates the
+task to `paid_unconfirmed` or `success` depending on confirmations. Stripe
+custom request payments create a real Google Tasks to-do item only after
+Stripe confirms successful payment. Confirm actual bookings manually only after
+payment is received.
 The default pending TTL is 2 hours; requests with a seen transaction are kept
 as `paid_unconfirmed` instead of being treated as unpaid noise.
 
