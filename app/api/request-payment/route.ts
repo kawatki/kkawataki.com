@@ -57,6 +57,10 @@ export async function POST(request: Request) {
     const stripe = getStripe()
     const origin = new URL(request.url).origin
 
+    const successUrl = new URL("/request/success/", origin)
+    successUrl.searchParams.set("session_id", "{CHECKOUT_SESSION_ID}")
+    successUrl.searchParams.set("reference", requestReference)
+
     const session = await stripe.checkout.sessions.create({
       cancel_url: `${origin}/request/?payment=cancelled`,
       customer_email: customRequest.email,
@@ -101,7 +105,7 @@ export async function POST(request: Request) {
         receipt_email: customRequest.email,
       },
       payment_method_types: ["card"],
-      success_url: `${origin}/request/success/?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: successUrl.toString(),
     })
 
     if (!session.url) {
