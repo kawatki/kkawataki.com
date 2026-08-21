@@ -4,12 +4,23 @@ export const CUSTOM_REQUEST_MAX_AMOUNT_JPY = 300_000
 export const CUSTOM_REQUEST_MIN_AMOUNT_BTC = 0.01
 export const CUSTOM_REQUEST_MAX_AMOUNT_BTC = 100
 
+export type CustomRequestMessagingPlatform =
+  | "discord"
+  | "instagram"
+  | "line"
+  | "none"
+  | "telegram"
+  | "whatsapp"
+  | "x"
+
 export type CustomRequestPayment = {
   amountJpy: number
   email: string
   name: string
   notes: string
   requestTitle: string
+  socialHandle: string
+  socialPlatform: CustomRequestMessagingPlatform
   termsAccepted: boolean
 }
 
@@ -51,6 +62,35 @@ export function parseCustomRequestPayment(value: unknown): CustomRequestPayment 
   const requestTitle =
     typeof input.requestTitle === "string" ? input.requestTitle.trim() : ""
   const notes = typeof input.notes === "string" ? input.notes.trim() : ""
+  let socialPlatform: CustomRequestMessagingPlatform = "none"
+  if (
+    input.socialPlatform === "discord" ||
+    input.socialPlatform === "instagram" ||
+    input.socialPlatform === "line" ||
+    input.socialPlatform === "none" ||
+    input.socialPlatform === "telegram" ||
+    input.socialPlatform === "whatsapp" ||
+    input.socialPlatform === "x"
+  ) {
+    socialPlatform = input.socialPlatform
+  }
+  const rawSocialHandle =
+    typeof input.socialHandle === "string" ? input.socialHandle.trim() : ""
+  const usesAtPrefix =
+    socialPlatform === "discord" ||
+    socialPlatform === "instagram" ||
+    socialPlatform === "telegram" ||
+    socialPlatform === "x"
+  const contactValue = usesAtPrefix
+    ? rawSocialHandle.replace(/^@+/u, "")
+    : rawSocialHandle
+  const socialHandle = socialPlatform === "none"
+    ? ""
+    : !contactValue
+    ? ""
+    : usesAtPrefix
+      ? `@${contactValue}`
+      : contactValue
   const amountJpy =
     typeof input.amountJpy === "number"
       ? input.amountJpy
@@ -70,6 +110,48 @@ export function parseCustomRequestPayment(value: unknown): CustomRequestPayment 
   }
   if (notes.length > 450) {
     throw new Error("Please keep your note under 450 characters.")
+  }
+  if (
+    socialPlatform !== "none" &&
+    socialPlatform === "instagram" &&
+    !/^@[A-Za-z0-9._]{1,30}$/u.test(socialHandle)
+  ) {
+    throw new Error("Enter a valid Instagram username.")
+  }
+  if (
+    socialPlatform !== "none" &&
+    socialPlatform === "telegram" &&
+    !/^@[A-Za-z0-9_]{5,32}$/u.test(socialHandle)
+  ) {
+    throw new Error("Enter a valid Telegram username.")
+  }
+  if (
+    socialPlatform !== "none" &&
+    socialPlatform === "x" &&
+    !/^@[A-Za-z0-9_]{1,15}$/u.test(socialHandle)
+  ) {
+    throw new Error("Enter a valid X username.")
+  }
+  if (
+    socialPlatform !== "none" &&
+    socialPlatform === "discord" &&
+    !/^@[A-Za-z0-9._]{2,32}$/u.test(socialHandle)
+  ) {
+    throw new Error("Enter a valid Discord username.")
+  }
+  if (
+    socialPlatform !== "none" &&
+    socialPlatform === "line" &&
+    !/^[A-Za-z0-9._-]{1,80}$/u.test(socialHandle)
+  ) {
+    throw new Error("Enter a valid LINE ID.")
+  }
+  if (
+    socialPlatform !== "none" &&
+    socialPlatform === "whatsapp" &&
+    !/^\+[1-9]\d{7,14}$/u.test(socialHandle)
+  ) {
+    throw new Error("Enter a valid WhatsApp phone number.")
   }
   if (
     !Number.isInteger(amountJpy) ||
@@ -92,6 +174,8 @@ export function parseCustomRequestPayment(value: unknown): CustomRequestPayment 
     name,
     notes,
     requestTitle,
+    socialHandle,
+    socialPlatform,
     termsAccepted,
   }
 }
@@ -132,6 +216,8 @@ export function parseBtcCustomRequestPayment(
     name: parsed.name,
     notes: parsed.notes,
     requestTitle: parsed.requestTitle,
+    socialHandle: parsed.socialHandle,
+    socialPlatform: parsed.socialPlatform,
     termsAccepted: parsed.termsAccepted,
   }
 }

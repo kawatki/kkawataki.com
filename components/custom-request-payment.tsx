@@ -22,11 +22,85 @@ import {
   CUSTOM_REQUEST_MAX_AMOUNT_JPY,
   CUSTOM_REQUEST_MIN_AMOUNT_JPY,
 } from "@/lib/custom-request"
+import type { CustomRequestMessagingPlatform } from "@/lib/custom-request"
 import { TurnstileWidget } from "@/components/turnstile-widget"
+import { WHATSAPP_COUNTRY_CODES } from "@/lib/whatsapp-country-codes"
 
 const TURNSTILE_TOKEN_REFRESH_AFTER_MS = 4 * 60 * 1_000
 
 type PaymentMethod = "card" | "btc"
+
+type MessagingField = {
+  inputMode?: "tel" | "text"
+  label: string
+  maxLength: number
+  pattern: string
+  placeholder: string
+  prefix?: string
+}
+
+const MESSAGING_FIELDS: Record<CustomRequestMessagingPlatform, MessagingField> = {
+  discord: {
+    label: "Discord username",
+    maxLength: 33,
+    pattern: "@?[A-Za-z0-9._]{2,32}",
+    placeholder: "username",
+    prefix: "@",
+  },
+  instagram: {
+    label: "Instagram username",
+    maxLength: 31,
+    pattern: "@?[A-Za-z0-9._]{1,30}",
+    placeholder: "username",
+    prefix: "@",
+  },
+  line: {
+    label: "LINE ID",
+    maxLength: 80,
+    pattern: "[A-Za-z0-9._-]{1,80}",
+    placeholder: "your-line-id",
+  },
+  none: {
+    label: "Email only",
+    maxLength: 0,
+    pattern: "",
+    placeholder: "",
+  },
+  telegram: {
+    label: "Telegram username",
+    maxLength: 33,
+    pattern: "@?[A-Za-z0-9_]{5,32}",
+    placeholder: "username",
+    prefix: "@",
+  },
+  whatsapp: {
+    inputMode: "tel",
+    label: "WhatsApp phone number",
+    maxLength: 30,
+    pattern: "\\+?[0-9 ()-]{7,30}",
+    placeholder: "Phone",
+  },
+  x: {
+    label: "X username",
+    maxLength: 16,
+    pattern: "@?[A-Za-z0-9_]{1,15}",
+    placeholder: "username",
+    prefix: "@",
+  },
+}
+
+const MESSAGING_OPTIONS: Array<{
+  label: string
+  value: CustomRequestMessagingPlatform
+}> = [
+  { label: "Email only", value: "none" },
+  { label: "Instagram", value: "instagram" },
+  { label: "Telegram", value: "telegram" },
+  { label: "X", value: "x" },
+  { label: "LINE", value: "line" },
+  { label: "WhatsApp", value: "whatsapp" },
+  { label: "Discord", value: "discord" },
+]
 
 type BtcInstructions = {
   address: string
@@ -84,6 +158,10 @@ export function CustomRequestPayment({
   const [amountJpy, setAmountJpy] = useState(0)
   const [amountBtc, setAmountBtc] = useState(CUSTOM_REQUEST_MIN_AMOUNT_BTC)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card")
+  const [socialPlatform, setSocialPlatform] =
+    useState<CustomRequestMessagingPlatform>("none")
+  const [whatsAppCountryCode, setWhatsAppCountryCode] = useState("+81")
+  const [whatsAppLocalNumber, setWhatsAppLocalNumber] = useState("")
   const [btcInstructions, setBtcInstructions] =
     useState<BtcInstructions | null>(null)
   const [btcTxid, setBtcTxid] = useState("")
@@ -107,6 +185,12 @@ export function CustomRequestPayment({
     Number.isFinite(amountBtc) && amountBtc >= CUSTOM_REQUEST_MIN_AMOUNT_BTC
   const validAmount =
     paymentMethod === "btc" ? validBtcAmount : validCardAmount
+  const messagingField = MESSAGING_FIELDS[socialPlatform]
+  const whatsAppDigits = whatsAppLocalNumber.replace(/\D/gu, "")
+  const normalizedWhatsAppNumber =
+    socialPlatform === "whatsapp" && whatsAppDigits
+      ? `${whatsAppCountryCode}${whatsAppDigits.replace(/^0+/u, "")}`
+      : ""
 
   const handleTurnstileToken = useCallback((token: string) => {
     setTurnstileToken(token)
@@ -271,6 +355,13 @@ export function CustomRequestPayment({
             name: String(formData.get("name") ?? ""),
             notes: String(formData.get("notes") ?? ""),
             requestTitle: String(formData.get("requestTitle") ?? ""),
+              socialHandle:
+              socialPlatform === "none"
+                ? ""
+                : socialPlatform === "whatsapp"
+                ? normalizedWhatsAppNumber
+                : String(formData.get("socialHandle") ?? ""),
+            socialPlatform,
             termsAccepted,
             turnstileToken,
           }),
@@ -398,6 +489,104 @@ export function CustomRequestPayment({
             placeholder="you@example.com"
           />
         </label>
+        <section className="grid gap-4 rounded-2xl border border-paper/15 bg-paper/5 p-4">
+          <div>
+            <h2 className="text-sm font-semibold">Where else should I message you?</h2>
+            <p className="mt-1 text-xs leading-5 text-paper/45">
+              Optional. Add this when the request needs quick back-and-forth.
+            </p>
+          </div>
+          <label className="grid gap-2 text-sm font-semibold">
+            Messaging app
+            <select
+              name="socialPlatform"
+              value={socialPlatform}
+              onChange={(event) => {
+                setSocialPlatform(
+                  event.target.value as CustomRequestMessagingPlatform
+                )
+                setBtcInstructions(null)
+              }}
+              className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none focus:border-jade-light"
+            >
+              {MESSAGING_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {socialPlatform === "none" ? (
+            <p className="rounded-xl border border-paper/15 bg-paper/5 px-4 py-3 text-sm leading-6 text-paper/55">
+              I’ll use your email receipt and any existing conversation for this
+              payment.
+            </p>
+          ) : socialPlatform === "whatsapp" ? (
+            <div className="grid gap-3 sm:grid-cols-[13rem_1fr]">
+              <label className="grid gap-2 text-sm font-semibold">
+                Country
+                <select
+                  value={whatsAppCountryCode}
+                  onChange={(event) => {
+                    setWhatsAppCountryCode(event.target.value)
+                    setBtcInstructions(null)
+                  }}
+                  className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none focus:border-jade-light"
+                  aria-label="WhatsApp country code"
+                >
+                  {WHATSAPP_COUNTRY_CODES.map((country) => (
+                    <option key={`${country.iso2}-${country.code}`} value={country.code}>
+                      {country.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-2 text-sm font-semibold">
+                Phone
+                <input
+                  required
+                  type="tel"
+                  inputMode="tel"
+                  value={whatsAppLocalNumber}
+                  onChange={(event) => {
+                    setWhatsAppLocalNumber(event.target.value)
+                    setBtcInstructions(null)
+                  }}
+                  maxLength={30}
+                  className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light"
+                  placeholder="Phone"
+                />
+              </label>
+              <input
+                readOnly
+                type="hidden"
+                name="socialHandle"
+                value={normalizedWhatsAppNumber}
+              />
+            </div>
+          ) : (
+            <label className="grid gap-2 text-sm font-semibold">
+              {messagingField.label}
+              <div className="flex h-12 overflow-hidden rounded-xl border border-paper/15 bg-paper/10 focus-within:border-jade-light">
+                {messagingField.prefix ? (
+                  <span className="flex items-center border-r border-paper/15 px-4 font-normal text-paper/45">
+                    {messagingField.prefix}
+                  </span>
+                ) : null}
+                <input
+                  name="socialHandle"
+                  required
+                  inputMode={messagingField.inputMode}
+                  maxLength={messagingField.maxLength}
+                  pattern={messagingField.pattern}
+                  className="min-w-0 flex-1 bg-transparent px-4 font-normal text-paper outline-none placeholder:text-paper/30"
+                  placeholder={messagingField.placeholder}
+                  onChange={() => setBtcInstructions(null)}
+                />
+              </div>
+            </label>
+          )}
+        </section>
         <label className="grid gap-2 text-sm font-semibold">
           {paymentMethod === "btc" ? "BTC payment amount" : "Custom payment amount"}
           <input

@@ -92,6 +92,7 @@ async function fulfillCheckout(
       metadata.social_platform === "discord" ||
       metadata.social_platform === "instagram" ||
       metadata.social_platform === "line" ||
+      metadata.social_platform === "telegram" ||
       metadata.social_platform === "whatsapp" ||
       metadata.social_platform === "x"
         ? metadata.social_platform
@@ -132,6 +133,16 @@ async function fulfillCustomRequestCheckout(
       name: metadata.customer_name,
       notes: metadata.request_notes ?? "",
       requestTitle: metadata.request_title,
+      socialHandle: metadata.social_handle ?? "",
+      socialPlatform:
+        metadata.social_platform === "discord" ||
+        metadata.social_platform === "instagram" ||
+        metadata.social_platform === "line" ||
+        metadata.social_platform === "telegram" ||
+        metadata.social_platform === "whatsapp" ||
+        metadata.social_platform === "x"
+          ? metadata.social_platform
+          : "none",
       termsAccepted: true,
     },
     requestReference: metadata.request_reference,

@@ -312,6 +312,22 @@ function notesFromSections(sections: string[][]) {
   return sections.map((section) => section.join("\n")).join("\n\n").slice(0, 8192)
 }
 
+function contactLines(input: Pick<CustomRequestPayment, "socialHandle" | "socialPlatform">) {
+  const contactLabel: Record<CustomRequestPayment["socialPlatform"], string> = {
+    discord: "Discord",
+    instagram: "Instagram",
+    line: "LINE",
+    none: "Email only",
+    telegram: "Telegram",
+    whatsapp: "WhatsApp",
+    x: "X.com",
+  }
+
+  return input.socialPlatform === "none" || !input.socialHandle
+    ? ["Messaging app: Email only"]
+    : [`${contactLabel[input.socialPlatform]}: ${input.socialHandle}`]
+}
+
 async function listOpenCustomRequestTasks() {
   const taskListId = await getTaskListId()
   const tasks: GoogleTask[] = []
@@ -390,6 +406,7 @@ export async function createBtcCustomRequestTask(input: {
     [
       `Customer: ${input.request.name}`,
       `Email: ${input.request.email}`,
+      ...contactLines(input.request),
       `Request: ${input.request.requestTitle}`,
       ...(input.request.notes ? [`Notes: ${input.request.notes}`] : []),
     ],
@@ -426,6 +443,7 @@ export async function createStripeCustomRequestTask(input: {
     [
       `Customer: ${input.request.name}`,
       `Email: ${input.request.email}`,
+      ...contactLines(input.request),
       `Request: ${input.request.requestTitle}`,
       ...(input.request.notes ? [`Notes: ${input.request.notes}`] : []),
     ],

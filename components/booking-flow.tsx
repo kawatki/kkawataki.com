@@ -79,6 +79,13 @@ const MESSAGING_FIELDS: Record<
     placeholder: "username",
     prefix: "@",
   },
+  telegram: {
+    label: "Telegram username",
+    maxLength: 33,
+    pattern: "@?[A-Za-z0-9_]{5,32}",
+    placeholder: "username",
+    prefix: "@",
+  },
   line: {
     label: "LINE ID",
     maxLength: 80,
@@ -106,6 +113,7 @@ const MESSAGING_OPTIONS: Array<{
   value: CustomerMessagingPlatform
 }> = [
   { label: "Instagram", value: "instagram" },
+  { label: "Telegram", value: "telegram" },
   { label: "X", value: "x" },
   { label: "LINE", value: "line" },
   { label: "WhatsApp", value: "whatsapp" },

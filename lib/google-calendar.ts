@@ -679,6 +679,7 @@ export async function confirmPaidBooking(input: {
     discord: "Discord",
     instagram: "Instagram",
     line: "LINE",
+    telegram: "Telegram",
     whatsapp: "WhatsApp",
     x: "X.com",
   }

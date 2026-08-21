@@ -34,6 +34,7 @@ export type MessagingPlatform =
   | "instagram"
   | "line"
   | "none"
+  | "telegram"
   | "whatsapp"
   | "x"
 
@@ -376,6 +377,7 @@ export function parseBookingRequest(value: unknown): BookingRequest {
     input.socialPlatform === "discord" ||
     input.socialPlatform === "instagram" ||
     input.socialPlatform === "line" ||
+    input.socialPlatform === "telegram" ||
     input.socialPlatform === "whatsapp" ||
     input.socialPlatform === "x"
   ) {
@@ -388,6 +390,7 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   const usesAtPrefix =
     socialPlatform === "discord" ||
     socialPlatform === "instagram" ||
+    socialPlatform === "telegram" ||
     socialPlatform === "x"
   const contactValue = usesAtPrefix
     ? rawSocialHandle.replace(/^@+/u, "")
@@ -436,6 +439,12 @@ export function parseBookingRequest(value: unknown): BookingRequest {
     !/^@[A-Za-z0-9._]{2,32}$/u.test(socialHandle)
   ) {
     throw new Error("Enter a valid Discord username.")
+  }
+  if (
+    socialPlatform === "telegram" &&
+    !/^@[A-Za-z0-9_]{5,32}$/u.test(socialHandle)
+  ) {
+    throw new Error("Enter a valid Telegram username.")
   }
   if (
     socialPlatform === "line" &&
