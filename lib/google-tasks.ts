@@ -104,6 +104,12 @@ async function getTasksAccessTokenFromRefreshToken(now: number) {
   })
 
   if (!response.ok) {
+    const detail = await response.text()
+    console.error(
+      "Google Tasks OAuth refresh failed",
+      response.status,
+      detail.slice(0, 500)
+    )
     throw new GoogleTasksError("Google Tasks OAuth refresh failed.", response.status)
   }
 
@@ -150,6 +156,12 @@ async function getTasksAccessTokenFromServiceAccount(now: number) {
   })
 
   if (!response.ok) {
+    const detail = await response.text()
+    console.error(
+      "Google Tasks service auth failed",
+      response.status,
+      detail.slice(0, 500)
+    )
     throw new GoogleTasksError("Google Tasks service auth failed.", response.status)
   }
 
@@ -430,6 +442,11 @@ export async function createStripeCustomRequestTask(input: {
   requestReference: string
   sessionId: string
 }) {
+  console.info("Creating Google Tasks to-do for paid custom request", {
+    reference: input.requestReference,
+    sessionId: input.sessionId,
+  })
+
   const notes = notesFromSections([
     [
       taskReferenceMarker(input.requestReference),
@@ -456,6 +473,11 @@ export async function createStripeCustomRequestTask(input: {
     notes,
     reference: input.requestReference,
     title: `Custom request paid - ${input.request.requestTitle}`,
+  })
+
+  console.info("Created Google Tasks to-do for paid custom request", {
+    reference: input.requestReference,
+    sessionId: input.sessionId,
   })
 }
 

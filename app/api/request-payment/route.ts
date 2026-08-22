@@ -13,6 +13,7 @@ import {
   TurnstileVerificationError,
   verifyTurnstile,
 } from "@/lib/turnstile"
+import type Stripe from "stripe"
 
 function requestIsSameOrigin(request: Request) {
   const origin = request.headers.get("origin")
@@ -60,13 +61,14 @@ export async function POST(request: Request) {
     const successUrl = new URL("/request/success/", origin)
     successUrl.searchParams.set("session_id", "{CHECKOUT_SESSION_ID}")
     successUrl.searchParams.set("reference", requestReference)
-    const contactMetadata =
-      customRequest.socialPlatform === "none" || !customRequest.socialHandle
-        ? {}
-        : {
-            social_handle: customRequest.socialHandle,
-            social_platform: customRequest.socialPlatform,
-          }
+    const contactMetadata: Stripe.MetadataParam = {}
+    if (
+      customRequest.socialPlatform !== "none" &&
+      customRequest.socialHandle
+    ) {
+      contactMetadata.social_handle = customRequest.socialHandle
+      contactMetadata.social_platform = customRequest.socialPlatform
+    }
 
     const session = await stripe.checkout.sessions.create({
       cancel_url: `${origin}/request/?payment=cancelled`,
