@@ -27,13 +27,13 @@ import {
 
 import type { BookingPricing, MessagingPlatform } from "@/lib/booking"
 import { cn } from "@/lib/utils"
-import { WHATSAPP_COUNTRY_CODES } from "@/lib/whatsapp-country-codes"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { TurnstileWidget } from "@/components/turnstile-widget"
+import { WHATSAPP_COUNTRY_CODES } from "@/lib/whatsapp-country-codes"
 
 type AvailabilityDay = {
   availableTimes: string[]
