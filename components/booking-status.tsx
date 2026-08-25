@@ -23,6 +23,7 @@ type BookingStatus =
   | "confirmed"
   | "delayed"
   | "error"
+  | "incomplete"
   | "invalid"
   | "pending"
   | "processing"
@@ -57,6 +58,7 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
           if (
             result.status === "confirmed" ||
             result.status === "error" ||
+            result.status === "incomplete" ||
             result.status === "invalid" ||
             result.status === "refunded"
           ) {
@@ -138,6 +140,7 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
     status === "invalid" ||
     status === "error" ||
     status === "delayed" ||
+    status === "incomplete" ||
     status === "refunded"
   ) {
     const copy =
@@ -154,6 +157,13 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
               "This Checkout Session is not recognized by the Stripe account connected to this site. Use the complete confirmation link from Stripe, or return to booking.",
             eyebrow: "Confirmation link not found",
             title: "We can’t verify this payment.",
+          }
+        : status === "incomplete"
+        ? {
+            description:
+              "No charge was made. Please return to booking and try again. If Stripe mentioned the card security code, double-check the CVC/CVV or use another card.",
+            eyebrow: "Payment not completed",
+            title: "Your booking is not confirmed yet.",
           }
         : status === "error"
           ? {
@@ -181,7 +191,9 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
         <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-ink/65">
           {copy.description}
         </p>
-        {status !== "invalid" && status !== "refunded" && (
+        {status !== "invalid" &&
+          status !== "incomplete" &&
+          status !== "refunded" && (
           <button
             type="button"
             onClick={() => window.location.reload()}

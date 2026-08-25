@@ -45,8 +45,12 @@ export async function GET(request: Request) {
       session.amount_total === pricing.depositAmountJpy &&
       session.currency === "jpy"
 
-    if (!paid || !eventId) {
-      return Response.json({ status: "pending" })
+    if (!paid) {
+      return Response.json({ status: "incomplete" })
+    }
+
+    if (!eventId) {
+      return Response.json({ status: "invalid" }, { status: 400 })
     }
 
     const calendarState = await getBookingState(eventId, session.id)

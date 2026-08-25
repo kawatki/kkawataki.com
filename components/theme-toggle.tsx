@@ -1,8 +1,8 @@
 "use client"
 
 import { Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
 
+import { useSiteTheme } from "@/components/theme-provider"
 import {
   Tooltip,
   TooltipContent,
@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/tooltip"
 
 export function ThemeToggle() {
-  const { resolvedTheme, setTheme } = useTheme()
+  const { resolvedTheme, setTheme } = useSiteTheme()
 
   return (
     <Tooltip>
