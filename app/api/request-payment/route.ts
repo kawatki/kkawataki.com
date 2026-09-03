@@ -7,6 +7,7 @@ import {
   checkRateLimit,
   rateLimitedResponse,
 } from "@/lib/rate-limit"
+import { createPendingStripeCustomRequestTask } from "@/lib/google-tasks"
 import { ConfigurationError } from "@/lib/server-config"
 import { getStripe } from "@/lib/stripe"
 import {
@@ -122,6 +123,12 @@ export async function POST(request: Request) {
     if (!session.url) {
       throw new Error("Stripe did not return a Checkout URL.")
     }
+
+    await createPendingStripeCustomRequestTask({
+      request: customRequest,
+      requestReference,
+      sessionId: session.id,
+    })
 
     return Response.json({ url: session.url })
   } catch (error) {
