@@ -4,6 +4,7 @@ import type {
   BtcCustomRequestPayment,
   BtcPaymentConfig,
   CustomRequestPayment,
+  CustomRequestMessagingPlatform,
 } from "@/lib/custom-request"
 import { requiredEnv } from "@/lib/server-config"
 
@@ -293,7 +294,7 @@ async function getTaskListId() {
   return taskListIdCache
 }
 
-function taskReferenceMarker(reference: string) {
+export function taskReferenceMarker(reference: string) {
   return `RJG reference: ${reference}`
 }
 
@@ -320,12 +321,15 @@ function yen(amount: number) {
   return `¥${amount.toLocaleString("en-US")}`
 }
 
-function notesFromSections(sections: string[][]) {
+export function notesFromSections(sections: string[][]) {
   return sections.map((section) => section.join("\n")).join("\n\n").slice(0, 8192)
 }
 
-function contactLines(input: Pick<CustomRequestPayment, "socialHandle" | "socialPlatform">) {
-  const contactLabel: Record<CustomRequestPayment["socialPlatform"], string> = {
+export function contactLines(input: {
+  socialHandle: string
+  socialPlatform: CustomRequestMessagingPlatform
+}) {
+  const contactLabel: Record<CustomRequestMessagingPlatform, string> = {
     discord: "Discord",
     instagram: "Instagram",
     line: "LINE",
@@ -393,6 +397,46 @@ async function insertCustomRequestTask(input: {
   )
 }
 
+export async function upsertGoogleTaskForReference(input: {
+  due?: string
+  notes: string
+  reference: string
+  title: string
+}) {
+  const existing = await findCustomRequestTask(input.reference)
+  if (existing.task?.id) {
+    return tasksRequest<GoogleTask>(
+      tasksUrl(
+        `/lists/${encodeURIComponent(existing.taskListId)}/tasks/${encodeURIComponent(
+          existing.task.id
+        )}`
+      ),
+      {
+        body: JSON.stringify({
+          due: input.due ?? existing.task.due ?? taskDueToday(),
+          notes: input.notes,
+          status: "needsAction",
+          title: truncateTaskTitle(input.title),
+        }),
+        method: "PATCH",
+      }
+    )
+  }
+
+  return tasksRequest<GoogleTask>(
+    tasksUrl(`/lists/${encodeURIComponent(existing.taskListId)}/tasks`),
+    {
+      body: JSON.stringify({
+        due: input.due ?? taskDueToday(),
+        notes: input.notes,
+        status: "needsAction",
+        title: truncateTaskTitle(input.title),
+      }),
+      method: "POST",
+    }
+  )
+}
+
 export async function createBtcCustomRequestTask(input: {
   btc: BtcPaymentConfig
   request: BtcCustomRequestPayment
@@ -436,6 +480,50 @@ export async function createBtcCustomRequestTask(input: {
   })
 }
 
+export async function createPendingStripeCustomRequestTask(input: {
+  request: CustomRequestPayment
+  requestReference: string
+  sessionId: string
+}) {
+  console.info("Creating Google Tasks to-do for pending custom request", {
+    reference: input.requestReference,
+    sessionId: input.sessionId,
+  })
+
+  const notes = notesFromSections([
+    [
+      taskReferenceMarker(input.requestReference),
+      "Payment method: Stripe",
+      "Status: pending",
+      "This is not a confirmed booking. Confirm only after Stripe payment is received.",
+      `Stripe session: ${input.sessionId}`,
+      `Agreed amount: ${yen(input.request.amountJpy)}`,
+      "RJG paymentStatus: pending",
+    ],
+    [
+      `Customer: ${input.request.name}`,
+      `Email: ${input.request.email}`,
+      ...contactLines(input.request),
+      `Request: ${input.request.requestTitle}`,
+      ...(input.request.notes ? [`Notes: ${input.request.notes}`] : []),
+    ],
+    [
+      "Customer instructions: complete the Stripe checkout. Closing Stripe does not confirm this request.",
+    ],
+  ])
+
+  await upsertGoogleTaskForReference({
+    notes,
+    reference: input.requestReference,
+    title: `Custom request pending - ${input.request.requestTitle}`,
+  })
+
+  console.info("Created Google Tasks to-do for pending custom request", {
+    reference: input.requestReference,
+    sessionId: input.sessionId,
+  })
+}
+
 export async function createStripeCustomRequestTask(input: {
   paidAt: number
   request: CustomRequestPayment
@@ -469,7 +557,7 @@ export async function createStripeCustomRequestTask(input: {
     ],
   ])
 
-  await insertCustomRequestTask({
+  await upsertGoogleTaskForReference({
     notes,
     reference: input.requestReference,
     title: `Custom request paid - ${input.request.requestTitle}`,

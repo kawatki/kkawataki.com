@@ -5,6 +5,7 @@ import {
   confirmPaidBooking,
   deleteHoldByStripeSession,
 } from "@/lib/google-calendar"
+import { createStripeCommerceCheckoutTask } from "@/lib/google-commerce-tasks"
 import { createStripeCustomRequestTask } from "@/lib/google-tasks"
 import { requiredEnv } from "@/lib/server-config"
 import { getStripe, getStripeCryptoProvider } from "@/lib/stripe"
@@ -41,7 +42,8 @@ async function fulfillCheckout(
     await fulfillCustomRequestCheckout(session, paidAt)
     return
   }
-  if (metadata.package_checkout) {
+  if (metadata.item_checkout || metadata.package_checkout) {
+    await fulfillCommerceCheckout(session, paidAt)
     return
   }
 
@@ -105,6 +107,105 @@ async function fulfillCheckout(
   }
 }
 
+async function fulfillCommerceCheckout(
+  session: Stripe.Checkout.Session,
+  paidAt: number
+) {
+  const metadata = session.metadata ?? {}
+  const amountJpy = Number(metadata.item_total_jpy)
+  const email = session.customer_details?.email ?? session.customer_email
+  const reference = metadata.item_reference ?? metadata.package_reference ?? ""
+
+  if (
+    session.currency !== "jpy" ||
+    session.amount_total !== amountJpy ||
+    !Number.isInteger(amountJpy) ||
+    !email ||
+    !metadata.customer_name ||
+    !reference ||
+    !metadata.item_summary
+  ) {
+    throw new Error("Paid commerce Checkout Session is missing metadata.")
+  }
+
+  const itemLines = parseCommerceItemLines(metadata.item_lines)
+
+  await createStripeCommerceCheckoutTask({
+    amountJpy,
+    email,
+    itemIds: metadata.item_ids ?? metadata.item_id ?? "",
+    itemKind: metadata.item_kind ?? "",
+    itemLines,
+    itemSummary: metadata.item_summary,
+    name: metadata.customer_name,
+    notes: metadata.item_notes ?? "",
+    paidAt,
+    preferredDate: metadata.preferred_date ?? "",
+    reference,
+    requiresShipping: metadata.item_requires_shipping === "true",
+    sessionId: session.id,
+    shippingAddress:
+      metadata.item_requires_shipping === "true"
+        ? {
+            addressLine1: metadata.shipping_address_line_1 ?? "",
+            addressLine2: metadata.shipping_address_line_2 ?? "",
+            city: metadata.shipping_city ?? "",
+            country: metadata.shipping_country ?? "",
+            postalCode: metadata.shipping_postal_code ?? "",
+            region: metadata.shipping_region ?? "",
+          }
+        : null,
+    socialHandle: metadata.social_handle ?? "",
+    socialPlatform:
+      metadata.social_platform === "discord" ||
+      metadata.social_platform === "instagram" ||
+      metadata.social_platform === "line" ||
+      metadata.social_platform === "telegram" ||
+      metadata.social_platform === "whatsapp" ||
+      metadata.social_platform === "x"
+        ? metadata.social_platform
+        : "none",
+  })
+}
+
+function parseCommerceItemLines(value: string | undefined) {
+  if (!value) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed.flatMap((line) => {
+      const candidate = line as Record<string, unknown>
+      if (
+        typeof candidate.i !== "string" ||
+        typeof candidate.k !== "string" ||
+        typeof candidate.s !== "string" ||
+        typeof candidate.a !== "number" ||
+        !Number.isInteger(candidate.a)
+      ) {
+        return []
+      }
+
+      return [
+        {
+          amountJpy: candidate.a,
+          itemId: candidate.i,
+          itemKind: candidate.k,
+          itemSummary: candidate.s,
+          requiresShipping: candidate.sh === true,
+        },
+      ]
+    })
+  } catch {
+    return []
+  }
+}
+
 async function fulfillCustomRequestCheckout(
   session: Stripe.Checkout.Session,
   paidAt: number
@@ -156,7 +257,11 @@ async function expireCheckoutHold(session: Stripe.Checkout.Session) {
   }
 
   const metadata = session.metadata ?? {}
-  if (metadata.custom_request_terms_accepted || metadata.package_checkout) {
+  if (
+    metadata.custom_request_terms_accepted ||
+    metadata.item_checkout ||
+    metadata.package_checkout
+  ) {
     return
   }
 
