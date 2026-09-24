@@ -1,6 +1,8 @@
 import { CancellationInputError, confirmCancellation, parseCancellationInput, previewCancellation } from "@/lib/booking-cancellation"
 import { checkRateLimit, rateLimitedResponse } from "@/lib/rate-limit"
 
+import { verifyTurnstile, TurnstileVerificationError } from "@/lib/turnstile"
+
 export async function POST(request: Request) {
   const headers = { "cache-control": "private, no-store" }
   if (request.headers.get("origin") !== new URL(request.url).origin) {
@@ -14,11 +16,15 @@ export async function POST(request: Request) {
     const input = JSON.parse(body)
     const { email, reference } = parseCancellationInput(input)
     if (input.action !== "preview" && input.action !== "confirm") throw new CancellationInputError("Invalid cancellation action.")
+    await verifyTurnstile(input.turnstileToken, request, "cancellation")
     const result = input.action === "confirm"
       ? await confirmCancellation(email, reference, input.quote)
       : await previewCancellation(email, reference)
     return Response.json(result, { headers })
   } catch (error) {
+    if (error instanceof TurnstileVerificationError) {
+      return Response.json({ error: error.message }, { status: error.unavailable ? 503 : 400, headers })
+    }
     if (error instanceof CancellationInputError || error instanceof SyntaxError) {
       return Response.json({ error: error instanceof SyntaxError ? "Invalid request." : error.message }, { status: 400, headers })
     }

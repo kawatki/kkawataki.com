@@ -11,7 +11,7 @@ export default function CancelPage() {
         <p className="eyebrow">Plans change</p>
         <h1 className="mt-4 font-display text-5xl tracking-tight sm:text-6xl">Cancel a booking.</h1>
         <p className="mt-5 text-base leading-7 text-ink/65">Enter the email used for payment and your booking reference. You’ll see the refund amount before you confirm.</p>
-        <CancellationForm />
+        <CancellationForm turnstileSiteKey={process.env.TURNSTILE_SITE_KEY?.trim() ?? ""} />
         <aside className="mt-10 rounded-2xl bg-cream p-6">
           <h2 className="font-display text-2xl">Cancellation policy</h2>
           <dl className="mt-4 space-y-3 text-base">

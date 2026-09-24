@@ -58,9 +58,13 @@ function loadTurnstile() {
 export function TurnstileWidget({
   onTokenChange,
   siteKey,
+  action = "checkout",
+  message = "Verifying this booking is being made by a person…",
 }: {
   onTokenChange(token: string): void
   siteKey: string
+  action?: string
+  message?: string
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const widgetIdRef = useRef<string | null>(null)
@@ -76,7 +80,7 @@ export function TurnstileWidget({
       .then(() => {
         if (cancelled || !containerRef.current || !window.turnstile) return
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
-          action: "checkout",
+          action,
           callback: (token) => {
             setLoading(false)
             setFailed(false)
@@ -111,7 +115,7 @@ export function TurnstileWidget({
         window.turnstile.remove(widgetIdRef.current)
       }
     }
-  }, [onTokenChange, reactId, siteKey])
+  }, [onTokenChange, reactId, siteKey, action])
 
   return (
     <div className="rounded-xl border border-ink/15 bg-card p-4">
@@ -123,7 +127,7 @@ export function TurnstileWidget({
       {loading && (
         <p className="mt-2 flex items-center gap-2 text-xs text-ink/50">
           <LoaderCircle className="size-3.5 animate-spin" />
-          Verifying this booking is being made by a person…
+          {message}
         </p>
       )}
       {failed && (
