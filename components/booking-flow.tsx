@@ -351,7 +351,6 @@ export function BookingFlow({
   })
   const [peopleCount, setPeopleCount] = useState("1")
   const [faceRecordingConsent, setFaceRecordingConsent] = useState(false)
-  const [surroundingsRecordingConsent, setSurroundingsRecordingConsent] = useState(false)
   const groupSize = Number(peopleCount)
   const validGroupSize = Number.isInteger(groupSize) && groupSize >= 1 && groupSize <= 6
   const [pricing, setPricing] = useState<BookingPricing | null>(null)
@@ -577,7 +576,7 @@ export function BookingFlow({
       timeToMinutes(selectedEnd) - timeToMinutes(selectedStart)
     if (durationMinutes < activePricing.minimumDurationMinutes) return null
 
-    const multiplier = bookingPriceMultiplier(groupSize, surroundingsRecordingConsent)
+    const multiplier = bookingPriceMultiplier(groupSize, faceRecordingConsent)
     const adjustedRate = Math.ceil(activePricing.rateJpyPer30Minutes * multiplier)
     const serviceTotalJpy =
       adjustedRate *
@@ -593,7 +592,7 @@ export function BookingFlow({
       durationHours: durationMinutes / 60,
       serviceTotalJpy,
     }
-  }, [activePricing, selectedEnd, selectedStart, validGroupSize, groupSize, surroundingsRecordingConsent])
+  }, [activePricing, selectedEnd, selectedStart, validGroupSize, groupSize, faceRecordingConsent])
 
   useEffect(() => {
     if (selectedPricing) {
@@ -697,7 +696,6 @@ export function BookingFlow({
         body: JSON.stringify({
           peopleCount: groupSize,
           faceRecordingConsent,
-          surroundingsRecordingConsent,
           depositTermsAccepted: true,
           email: form.get("email"),
           endTime: selectedEnd,
@@ -1187,13 +1185,9 @@ export function BookingFlow({
             <p className="text-sm text-paper/70">1–3 people: standard price. 4–6 people: 2× price. Maximum 6 people.</p>
             <label className="flex items-start gap-3 text-sm">
               <input type="checkbox" checked={faceRecordingConsent} onChange={(event) => setFaceRecordingConsent(event.target.checked)} className="mt-1 size-5 shrink-0" />
-              <span>I agree to be part of your social media content, such as Instagram. <span className="text-paper/70">This may include my face. Totally optional, with no change to the price. Each guest can choose for themselves.</span></span>
+              <span>I agree to be part of your social media content, such as Instagram. <span className="text-paper/70">This may include my face. Prefer to stay off camera? Leave this unchecked for a 20% increase in the group price. Each guest can choose whether to appear.</span></span>
             </label>
-            <label className="flex items-start gap-3 text-sm">
-              <input type="checkbox" checked={surroundingsRecordingConsent} onChange={(event) => setSurroundingsRecordingConsent(event.target.checked)} className="mt-1 size-5 shrink-0" />
-              <span>I’m happy for you to capture our food and the places we visit, without showing guests’ faces. <span className="text-paper/70">Prefer to keep these moments off camera? Leave this unchecked for a 20% increase in the group price.</span></span>
-            </label>
-            <p className="text-sm font-semibold">For 4–6 people, the group price is doubled. Choosing no food or surroundings filming adds 20% to that price.</p>
+            <p className="text-sm font-semibold">For 4–6 people, the group price is doubled. Leaving the social media checkbox unchecked adds 20% to that price.</p>
             {selectedPricing && <p className="text-sm">Your service total: {yen(selectedPricing.serviceTotalJpy)} · {selectedPricing.depositPercent}% deposit: {yen(selectedPricing.depositAmountJpy)}</p>}
           </fieldset>
           <fieldset className="grid gap-3">
@@ -1446,7 +1440,7 @@ export function BookingFlow({
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink/45">
                       Your booking · {selectedPricing.durationHours} hours · {groupSize} people
                     </p>
-                    <p className="mt-2 text-sm">Group: {Math.ceil(groupSize / 3)}× · Filming: {surroundingsRecordingConsent ? 1 : 1.2}×. Face recording: {faceRecordingConsent ? "agreed" : "not agreed"}.</p>
+                    <p className="mt-2 text-sm">Group: {Math.ceil(groupSize / 3)}× · Social media: {faceRecordingConsent ? 1 : 1.2}×. Participation: {faceRecordingConsent ? "agreed" : "not agreed"}.</p>
                     <dl className="mt-4 grid gap-3 text-sm">
                       <div className="flex items-center justify-between gap-4">
                         <dt className="text-ink/60">

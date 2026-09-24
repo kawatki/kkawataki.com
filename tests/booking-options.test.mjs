@@ -7,10 +7,10 @@ const {bookingPriceMultiplier,parseBookingOptions}=load('@/lib/booking-options')
 const {bookingPricingFromMetadata}=load('@/lib/booking-policy')
 test('all group sizes and recording choices produce matching checkout and refund snapshots',()=>{
  const base=getBookingPricing(120)
- for(let peopleCount=1;peopleCount<=6;peopleCount++) for(const surroundingsRecordingConsent of [false,true]) for(const faceRecordingConsent of [false,true]) {
-  const options={peopleCount,surroundingsRecordingConsent,faceRecordingConsent}
-  const multiplier=(peopleCount<=3?1:2)*(surroundingsRecordingConsent?1:1.2)
-  assert.equal(bookingPriceMultiplier(peopleCount,surroundingsRecordingConsent),multiplier)
+ for(let peopleCount=1;peopleCount<=6;peopleCount++) for(const faceRecordingConsent of [false,true]) {
+  const options={peopleCount,faceRecordingConsent}
+  const multiplier=(peopleCount<=3?1:2)*(faceRecordingConsent?1:1.2)
+  assert.equal(bookingPriceMultiplier(peopleCount,faceRecordingConsent),multiplier)
   const p=getBookingPricing(120,options)
   assert.equal(p.serviceTotalJpy,base.serviceTotalJpy*multiplier)
   assert.equal(p.depositAmountJpy,Math.ceil(p.serviceTotalJpy*.25))
@@ -20,8 +20,8 @@ test('all group sizes and recording choices produce matching checkout and refund
  }
 })
 test('server rejects invalid group sizes and missing or nonboolean recording choices',()=>{
- const good={peopleCount:1,faceRecordingConsent:false,surroundingsRecordingConsent:true}
+ const good={peopleCount:1,faceRecordingConsent:false}
  for(const peopleCount of [0,7,-1,1.5,NaN,Infinity,'3',undefined]) assert.throws(()=>parseBookingOptions({...good,peopleCount}))
- for(const field of ['faceRecordingConsent','surroundingsRecordingConsent']) for(const value of ['true',undefined,0]) assert.throws(()=>parseBookingOptions({...good,[field]:value}))
+ for(const field of ['faceRecordingConsent']) for(const value of ['true',undefined,0]) assert.throws(()=>parseBookingOptions({...good,[field]:value}))
  assert.deepEqual(parseBookingOptions(good),good)
 })
