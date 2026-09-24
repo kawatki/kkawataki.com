@@ -113,7 +113,7 @@ export function getBookingPricing(
     Number.isInteger(configuredRate) && configuredRate > 0
       ? configuredRate
       : DEFAULT_RATE_JPY_PER_30_MINUTES
-  const rateJpyPer30Minutes = baseRateJpyPer30Minutes * (options ? bookingPriceMultiplier(options.peopleCount, options.surroundingsRecordingConsent) : 1)
+  const rateJpyPer30Minutes = Math.ceil(baseRateJpyPer30Minutes * (options ? bookingPriceMultiplier(options.peopleCount, options.surroundingsRecordingConsent) : 1))
   const serviceTotalJpy =
     rateJpyPer30Minutes * (durationMinutes / BOOKING_INCREMENT_MINUTES)
   const depositAmountJpy = Math.ceil(

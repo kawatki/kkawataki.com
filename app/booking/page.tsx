@@ -32,7 +32,7 @@ export default async function BookingPage({
   return (
     <>
       <section className="border-b border-ink/10 bg-cream">
-        <div className="page-shell py-14 sm:py-20">
+        <div className="pb-32 lg:pb-36 page-shell py-14 sm:py-20">
           <p className="eyebrow">Book your time</p>
           <div className="mt-5 grid gap-8 lg:grid-cols-[1fr_0.65fr] lg:items-end">
             <h1 className="max-w-4xl text-balance font-display text-6xl leading-[0.9] tracking-[-0.045em] sm:text-8xl">
@@ -60,7 +60,7 @@ export default async function BookingPage({
         </div>
       </section>
 
-      <section className="page-shell py-10 sm:py-16">
+      <section className="pb-32 lg:pb-36 page-shell py-10 sm:py-16">
         <BookingFlow
           bookingEventId={bookingEventId}
           cancelToken={cancelToken}

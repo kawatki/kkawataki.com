@@ -9,7 +9,7 @@ test('all group sizes and recording choices produce matching checkout and refund
  const base=getBookingPricing(120)
  for(let peopleCount=1;peopleCount<=6;peopleCount++) for(const surroundingsRecordingConsent of [false,true]) for(const faceRecordingConsent of [false,true]) {
   const options={peopleCount,surroundingsRecordingConsent,faceRecordingConsent}
-  const multiplier=(peopleCount<=3?1:2)*(surroundingsRecordingConsent?1:2)
+  const multiplier=(peopleCount<=3?1:2)*(surroundingsRecordingConsent?1:1.2)
   assert.equal(bookingPriceMultiplier(peopleCount,surroundingsRecordingConsent),multiplier)
   const p=getBookingPricing(120,options)
   assert.equal(p.serviceTotalJpy,base.serviceTotalJpy*multiplier)

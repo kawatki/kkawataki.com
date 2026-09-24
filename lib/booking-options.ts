@@ -9,7 +9,7 @@ export function bookingPriceMultiplier(peopleCount: number, surroundingsRecordin
     throw new Error("Choose between 1 and 6 people.")
   }
   if (typeof surroundingsRecordingConsent !== "boolean") throw new Error("Choose your recording preference.")
-  return Math.ceil(peopleCount / 3) * (surroundingsRecordingConsent ? 1 : 2)
+  return Math.ceil(peopleCount / 3) * (surroundingsRecordingConsent ? 1 : 1.2)
 }
 
 export function parseBookingOptions(input: Record<string, unknown>): BookingOptions {

@@ -144,7 +144,7 @@ export async function POST(request: Request) {
       customer_email: booking.email,
       custom_text: {
         submit: {
-          message: `Complete payment within ${CHECKOUT_HOLD_MINUTES} minutes to keep this time. ${booking.peopleCount} people. Face recording: ${booking.faceRecordingConsent ? "agreed" : "not agreed"}. Food and surroundings recording: ${booking.surroundingsRecordingConsent ? "agreed" : "not agreed (2× price)"}. Adjusted service rate: ¥${pricing.rateJpyPer30Minutes.toLocaleString("en-US")} per 30 minutes (¥${pricing.serviceTotalJpy.toLocaleString("en-US")} for ${pricing.durationHours} hours). The ${pricing.depositPercent}% deposit of ¥${pricing.depositAmountJpy.toLocaleString("en-US")} is deducted from the final amount. ${cancellationPolicyText()} You also cover transportation costs (approximately 3,000–4,000 JPY) and any food or drinks during our time together.`,
+          message: `Complete payment within ${CHECKOUT_HOLD_MINUTES} minutes to keep this time. ${booking.peopleCount} people. Face recording: ${booking.faceRecordingConsent ? "agreed" : "not agreed"}. Food and surroundings recording: ${booking.surroundingsRecordingConsent ? "agreed" : "not agreed (20% increase)"}. Adjusted service rate: ¥${pricing.rateJpyPer30Minutes.toLocaleString("en-US")} per 30 minutes (¥${pricing.serviceTotalJpy.toLocaleString("en-US")} for ${pricing.durationHours} hours). The ${pricing.depositPercent}% deposit of ¥${pricing.depositAmountJpy.toLocaleString("en-US")} is deducted from the final amount. ${cancellationPolicyText()} You also cover transportation costs (approximately 3,000–4,000 JPY) and any food or drinks during our time together.`,
         },
       },
       expires_at: stripeExpiresAt,

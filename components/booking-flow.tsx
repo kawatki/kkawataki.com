@@ -578,7 +578,7 @@ export function BookingFlow({
     if (durationMinutes < activePricing.minimumDurationMinutes) return null
 
     const multiplier = bookingPriceMultiplier(groupSize, surroundingsRecordingConsent)
-    const adjustedRate = activePricing.rateJpyPer30Minutes * multiplier
+    const adjustedRate = Math.ceil(activePricing.rateJpyPer30Minutes * multiplier)
     const serviceTotalJpy =
       adjustedRate *
       (durationMinutes / activePricing.bookingIncrementMinutes)
@@ -1187,13 +1187,13 @@ export function BookingFlow({
             <p className="text-sm text-paper/70">1–3 people: standard price. 4–6 people: 2× price. Maximum 6 people.</p>
             <label className="flex items-start gap-3 text-sm">
               <input type="checkbox" checked={faceRecordingConsent} onChange={(event) => setFaceRecordingConsent(event.target.checked)} className="mt-1 size-5 shrink-0" />
-              <span>I agree to having my face recorded. <span className="text-paper/70">Optional; this does not affect the price. Each guest decides whether their face may be recorded.</span></span>
+              <span>I agree to be part of your social media content, such as Instagram. <span className="text-paper/70">This may include my face. Totally optional, with no change to the price. Each guest can choose for themselves.</span></span>
             </label>
             <label className="flex items-start gap-3 text-sm">
               <input type="checkbox" checked={surroundingsRecordingConsent} onChange={(event) => setSurroundingsRecordingConsent(event.target.checked)} className="mt-1 size-5 shrink-0" />
-              <span>I agree to filming food and surroundings without showing guests’ faces. <span className="text-paper/70">Required for the standard price. Leave unchecked to decline food and surroundings filming, at 2× the group price.</span></span>
+              <span>I’m happy for you to capture our food and the places we visit, without showing guests’ faces. <span className="text-paper/70">Prefer to keep these moments off camera? Leave this unchecked for a 20% increase in the group price.</span></span>
             </label>
-            <p className="text-sm font-semibold">Price = base price × group multiplier × filming multiplier. 4–6 people without filming: 4× the base price.</p>
+            <p className="text-sm font-semibold">For 4–6 people, the group price is doubled. Choosing no food or surroundings filming adds 20% to that price.</p>
             {selectedPricing && <p className="text-sm">Your service total: {yen(selectedPricing.serviceTotalJpy)} · {selectedPricing.depositPercent}% deposit: {yen(selectedPricing.depositAmountJpy)}</p>}
           </fieldset>
           <fieldset className="grid gap-3">
@@ -1446,7 +1446,7 @@ export function BookingFlow({
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink/45">
                       Your booking · {selectedPricing.durationHours} hours · {groupSize} people
                     </p>
-                    <p className="mt-2 text-sm">Group: {Math.ceil(groupSize / 3)}× · Filming: {surroundingsRecordingConsent ? 1 : 2}×. Face recording: {faceRecordingConsent ? "agreed" : "not agreed"}.</p>
+                    <p className="mt-2 text-sm">Group: {Math.ceil(groupSize / 3)}× · Filming: {surroundingsRecordingConsent ? 1 : 1.2}×. Face recording: {faceRecordingConsent ? "agreed" : "not agreed"}.</p>
                     <dl className="mt-4 grid gap-3 text-sm">
                       <div className="flex items-center justify-between gap-4">
                         <dt className="text-ink/60">
@@ -1557,6 +1557,17 @@ export function BookingFlow({
           </AlertDialog.Portal>
         </AlertDialog.Root>
       </form>
+      {!confirmationOpen && (
+        <aside aria-label="Booking price summary" aria-live="polite" className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/15 bg-paper/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] text-ink shadow-xl backdrop-blur-md lg:inset-x-auto lg:right-6 lg:bottom-6 lg:w-96 lg:rounded-2xl lg:border lg:p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs text-ink/65">{selectedPricing ? `${selectedPricing.durationHours} hours · ${groupSize} ${groupSize === 1 ? "person" : "people"}` : "Your booking"}</p>
+              <p className="mt-1 text-base font-semibold">{selectedPricing ? `${yen(selectedPricing.serviceTotalJpy)} total` : validGroupSize ? "Choose a date and time" : "Choose 1–6 people"}</p>
+            </div>
+            {selectedPricing && <div className="shrink-0 text-right"><p className="text-xs text-ink/65">{selectedPricing.depositPercent}% deposit</p><p className="mt-1 text-lg font-semibold text-vermilion">{yen(selectedPricing.depositAmountJpy)}</p></div>}
+          </div>
+        </aside>
+      )}
     </div>
   )
 }
