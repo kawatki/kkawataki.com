@@ -9,6 +9,7 @@ const navigation = {
     { name: "About", href: "/about" },
     { name: "Booking", href: "/booking" },
     { name: "Request", href: "/request" },
+    { name: "Cancellation", href: "/cancel" },
   ],
   social: [
     {

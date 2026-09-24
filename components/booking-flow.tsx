@@ -25,15 +25,16 @@ import {
   X,
 } from "lucide-react"
 
+import { DEPOSIT_PERCENT, cancellationPolicyText } from "@/lib/booking-policy"
 import type { BookingPricing, MessagingPlatform } from "@/lib/booking"
 import { cn } from "@/lib/utils"
+import { WHATSAPP_COUNTRY_CODES } from "@/lib/whatsapp-country-codes"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { TurnstileWidget } from "@/components/turnstile-widget"
-import { WHATSAPP_COUNTRY_CODES } from "@/lib/whatsapp-country-codes"
 
 type AvailabilityDay = {
   availableTimes: string[]
@@ -1137,7 +1138,7 @@ export function BookingFlow({
         </StepLabel>
         <h2 className="mt-3 font-display text-4xl">Secure your time.</h2>
         <p className="mt-3 text-sm leading-6 text-paper/60">
-          Your slot is confirmed only after Stripe accepts the 25% deposit.
+          Your slot is confirmed only after Stripe accepts the {pricing?.depositPercent ?? DEPOSIT_PERCENT}% deposit.
           The exact amount updates with the time range you choose.
         </p>
 
@@ -1402,13 +1403,11 @@ export function BookingFlow({
 
                 <div className="mt-6 rounded-2xl border border-vermilion/20 bg-vermilion/[0.06] p-5">
                   <p className="font-semibold">
-                    The {yen(selectedPricing?.depositAmountJpy ?? 0)} deposit is
-                    non-refundable.
+                    The {yen(selectedPricing?.depositAmountJpy ?? 0)} deposit reserves your time.
                   </p>
                   <p className="mt-2 text-sm leading-6 text-ink/65">
-                    It will not be refunded if you cancel or do not attend. The
-                    deposit is deducted from the final amount paid in person. If
-                    I cancel the booking, your deposit will be refunded.
+                    The deposit is deducted from the final amount paid in person.
+                    {" "}{cancellationPolicyText()}
                   </p>
                 </div>
 
@@ -1429,7 +1428,7 @@ export function BookingFlow({
                       </div>
                       <div className="flex items-center justify-between gap-4">
                         <dt className="text-ink/60">
-                          25% deposit paid now
+                          {selectedPricing.depositPercent}% deposit paid now
                         </dt>
                         <dd className="font-semibold">
                           − {yen(selectedPricing.depositAmountJpy)}
@@ -1443,8 +1442,8 @@ export function BookingFlow({
                       </div>
                     </dl>
                     <p className="mt-4 border-t border-ink/10 pt-4 text-sm leading-6 text-ink/60">
-                      You also cover transportation costs and any food or drinks
-                      during our time together.
+                      You also cover transportation costs (approximately 3,000–4,000 JPY)
+                      and any food or drinks during our time together.
                     </p>
                   </div>
                 )}
@@ -1486,7 +1485,7 @@ export function BookingFlow({
                     </Checkbox.Indicator>
                   </Checkbox.Root>
                   <span>
-                    I understand and agree to the non-refundable deposit policy.
+                    I understand and agree to the deposit and cancellation policy.
                   </span>
                 </label>
 

@@ -15,6 +15,7 @@ const navigation = [
   { href: "/about", label: "About" },
   { href: "/booking", label: "Booking" },
   { href: "/request", label: "Request" },
+  { href: "/cancel", label: "Cancellation" },
 ]
 
 export function SiteHeader() {
@@ -24,9 +25,9 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-ink/10 bg-paper/90 backdrop-blur-xl">
       <div className="page-shell flex h-[76px] items-center justify-between gap-4">
-        <Link href="/" className="group flex items-center gap-3" aria-label="Rental Japanese Guy home">
-          <BrandMark className="size-9 transition-transform group-hover:-rotate-6" />
-          <span className="hidden font-display text-xl tracking-tight sm:block">
+        <Link href="/" className="group flex shrink-0 items-center gap-3" aria-label="Rental Japanese Guy home">
+          <BrandMark className="size-9 shrink-0 transition-transform group-hover:-rotate-6" />
+          <span className="hidden whitespace-nowrap font-display text-xl tracking-tight xl:block">
             Rental Japanese Guy
           </span>
         </Link>
@@ -84,7 +85,7 @@ export function SiteHeader() {
                   }
                   touchStartX.current = null
                 }}
-                className="fixed inset-y-0 right-0 z-[70] flex w-[calc(100%-3.5rem)] max-w-sm touch-pan-y flex-col overflow-y-auto border-l border-ink/10 bg-paper p-6 shadow-2xl shadow-black/30 transition-transform duration-300 ease-out data-ending-style:translate-x-full data-starting-style:translate-x-full"
+                className="refined-scrollbar fixed inset-y-0 right-0 z-[70] flex w-[calc(100%-3.5rem)] max-w-sm touch-pan-y flex-col overflow-y-auto border-l border-ink/10 bg-paper p-6 shadow-2xl shadow-black/30 transition-transform duration-300 ease-out data-ending-style:translate-x-full data-starting-style:translate-x-full"
               >
                 <Dialog.Title className="sr-only">Navigation menu</Dialog.Title>
 

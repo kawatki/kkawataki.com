@@ -1,4 +1,5 @@
 import "server-only"
+import { cancellationPolicyFromMetadata } from "@/lib/booking-policy"
 
 import type { BookingReceipt } from "@/lib/booking"
 import { bookingTransportBufferMinutes } from "@/lib/booking"
@@ -73,6 +74,7 @@ export async function getPublicBookingReceipt(
   }
 
   return {
+    cancellationPolicy: cancellationPolicyFromMetadata(metadata),
     balanceDueJpy: serviceTotalJpy - depositAmountJpy,
     bookingReference,
     customerEmail: maskEmail(customerEmail),

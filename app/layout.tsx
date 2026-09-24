@@ -31,6 +31,9 @@ export const metadata: Metadata = {
     description: "Tokyo, with a Japanese guy on your side.",
     images: ["/og.png"],
   },
+  other: {
+    "darkreader-lock": "",
+  },
 };
 
 export default function RootLayout({
@@ -47,19 +50,19 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col">
         <ThemeProvider>
-          <TooltipProvider>
-            <SiteHeader />
-            <main className="flex-1">{children}</main>
-            <SiteFooter />
-            <Toaster
-              position="top-center"
-              offset={{ top: 88 }}
-              mobileOffset={{
-                top: "calc(env(safe-area-inset-top, 0px) + 5rem)",
-              }}
-              richColors
-            />
-          </TooltipProvider>
+            <TooltipProvider>
+              <SiteHeader />
+              <main className="flex-1">{children}</main>
+              <SiteFooter />
+              <Toaster
+                position="top-center"
+                offset={{ top: 88 }}
+                mobileOffset={{
+                  top: "calc(env(safe-area-inset-top, 0px) + 5rem)",
+                }}
+                richColors
+              />
+            </TooltipProvider>
         </ThemeProvider>
       </body>
       {googleAnalyticsId && (

@@ -9,9 +9,11 @@ A Next.js booking site with a payment-gated Google Calendar workflow.
    only when a longer range is unavailable.
 2. Cloudflare Turnstile is verified on the server before any calendar or
    Stripe resource is created.
-3. The server creates a 10-minute private hold in Google Calendar.
-4. Stripe Checkout collects a non-refundable deposit equal to 25% of the
-   service total.
+3. The server reserves the website slot for exactly 10 minutes. A tentative,
+   reminder-free calendar placeholder is marked free until payment succeeds.
+4. Stripe Checkout collects a deposit, currently 25% of the service total.
+   Deposit and cancellation percentages are configured independently in
+   `lib/booking-policy.ts`.
 5. A signed Stripe webhook changes the hold into a confirmed calendar event
    only when Stripe says payment completed within the 10-minute deadline.
 6. A late or conflicting payment is automatically refunded instead of creating
@@ -61,7 +63,7 @@ For Stripe test mode:
 2. Run a local webhook forwarder:
 
    ```bash
-   stripe listen --events checkout.session.completed,checkout.session.expired \
+   stripe listen --events checkout.session.completed,checkout.session.expired,payment_intent.payment_failed,payment_intent.canceled \
      --forward-to localhost:3000/api/stripe/webhook/
    ```
 
@@ -119,8 +121,11 @@ Stripe webhook confirmation updates successful bookings to
 booking page immediately releases the matching unpaid hold. Stripe's
 `checkout.session.expired` webhook also releases abandoned unpaid holds when the
 hosted Checkout Session expires. Expired unpaid holds stop blocking availability
-immediately. `/api/cron/cleanup-booking-holds` deletes expired holds and any
-pending hold that overlaps a real, non-hold calendar event as a backup.
+immediately. Availability responses are not cached. Every availability read also
+retires expired calendar placeholders, with an ETag check to protect concurrent
+confirmations. The cleanup endpoint does the same as a backup. If no one visits,
+a free calendar placeholder can remain visible until an expiry webhook or the
+cleanup job runs; it cannot block Google Calendar availability.
 
 Start the site:
 
@@ -139,9 +144,45 @@ Register this webhook endpoint in Stripe test mode:
 https://rental-japanese-guy.kkawataki.chatgpt.site/api/stripe/webhook/
 ```
 
-Subscribe it to `checkout.session.completed` and `checkout.session.expired`,
+Subscribe it to `checkout.session.completed`, `checkout.session.expired`,
+`payment_intent.payment_failed`, and `payment_intent.canceled`,
 then store its signing secret and the remaining server variables in the hosting
 environment before publishing.
 
 Disable the old public Google Appointment Schedule after this flow is live.
 Otherwise somebody who knows its direct Google URL can still bypass Stripe.
+
+## Customer cancellations
+
+`/cancel` requires the payment email and RJG booking reference. It previews the
+refund, then requires an explicit confirmation. Treat the reference as private.
+The page does not send a verification email; possession of both details authorizes
+the cancellation. No email delivery service is required.
+
+New bookings snapshot their price and cancellation policy in Stripe metadata.
+Current refunds are 50% of the amount paid with at least 30 days’ notice, 25%
+with at least 7 days, and 0% otherwise. These are exact 24-hour periods before
+the appointment starts. JPY refunds round down to whole yen. Old bookings without
+a policy snapshot retain their original non-refundable terms.
+
+The D1 cancellation ledger records the entitlement before releasing the calendar
+slot and issuing a Stripe refund. Repeated requests reuse the same record and
+refund. The existing authenticated cleanup-booking-holds cron also retries pending
+cancellations; retain its 30–60 minute schedule. Customers may use the same details
+to check status and resume a pending request. Failed/disputed/already-refunded
+payments require owner attention through Stripe; they do not create another refund.
+
+Run `node --test tests/cancellation.test.mjs` for refund boundary, pricing snapshot,
+authorization, retry, concurrency, and webhook replay tests using mocked providers
+and an in-memory SQLite database. No real payments or calendar events are touched.
+
+The package, shop, and commerce checkout pages, cart, product catalog, and
+item-checkout API are removed so these features can be rebuilt from scratch. Historical
+payment webhook handling remains so already-created payments can finish.
+The booking deposit endpoint /api/checkout is still required by /booking.
+
+Failed-payment webhooks re-read the current PaymentIntent and Checkout Session
+before expiring the session and retiring its hold. A successful retry is protected
+from a delayed failure event. Missing/retired holds cannot be confirmed by a late
+payment webhook: the payment follows the existing full-refund path instead.
+Run `node --test tests/*.test.mjs` for both cancellation and booking-hold checks.

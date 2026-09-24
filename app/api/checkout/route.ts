@@ -1,3 +1,4 @@
+import { CANCELLATION_POLICY, cancellationPolicyText } from "@/lib/booking-policy"
 import {
   CHECKOUT_HOLD_MINUTES,
   createBookingReference,
@@ -143,7 +144,7 @@ export async function POST(request: Request) {
       customer_email: booking.email,
       custom_text: {
         submit: {
-          message: `Complete payment within ${CHECKOUT_HOLD_MINUTES} minutes to keep this time. Service rate: ¥${pricing.rateJpyPer30Minutes.toLocaleString("en-US")} per 30 minutes (¥${pricing.serviceTotalJpy.toLocaleString("en-US")} for ${pricing.durationHours} hours). The 25% deposit of ¥${pricing.depositAmountJpy.toLocaleString("en-US")} is non-refundable if you cancel or do not attend, and is deducted from the final amount. You also cover transportation and any food or drinks during our time together.`,
+          message: `Complete payment within ${CHECKOUT_HOLD_MINUTES} minutes to keep this time. Service rate: ¥${pricing.rateJpyPer30Minutes.toLocaleString("en-US")} per 30 minutes (¥${pricing.serviceTotalJpy.toLocaleString("en-US")} for ${pricing.durationHours} hours). The ${pricing.depositPercent}% deposit of ¥${pricing.depositAmountJpy.toLocaleString("en-US")} is deducted from the final amount. ${cancellationPolicyText()} You also cover transportation costs (approximately 3,000–4,000 JPY) and any food or drinks during our time together.`,
         },
       },
       expires_at: stripeExpiresAt,
@@ -174,6 +175,10 @@ export async function POST(request: Request) {
         deposit_percent: String(pricing.depositPercent),
         deposit_terms_accepted: "true",
         deposit_terms_version: DEPOSIT_TERMS_VERSION,
+        cancellation_policy_version: CANCELLATION_POLICY.version,
+        cancellation_30_days_percent: String(CANCELLATION_POLICY.thirtyDaysPercent),
+        cancellation_7_days_percent: String(CANCELLATION_POLICY.sevenDaysPercent),
+        cancellation_late_percent: String(CANCELLATION_POLICY.latePercent),
         rate_jpy_per_30_minutes: String(pricing.rateJpyPer30Minutes),
         service_total_jpy: String(pricing.serviceTotalJpy),
         social_handle: booking.socialHandle,

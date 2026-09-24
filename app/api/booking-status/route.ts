@@ -1,6 +1,7 @@
+import { bookingPricingFromMetadata, cancellationPolicyFromMetadata } from "@/lib/booking-policy"
+import { bookingWasCancelled } from "@/lib/cancellation-store"
 import {
   bookingTransportBufferMinutes,
-  getBookingPricing,
 } from "@/lib/booking"
 import { getBookingState } from "@/lib/google-calendar"
 import {
@@ -36,18 +37,11 @@ export async function GET(request: Request) {
   try {
     const session = await getStripe().checkout.sessions.retrieve(sessionId)
     const eventId = session.metadata?.booking_event_id
-    const durationMinutes = Number(
-      session.metadata?.booking_duration_minutes ?? 4 * 60
-    )
-    const pricing = getBookingPricing(durationMinutes)
-    const paid =
-      session.payment_status === "paid" &&
-      session.amount_total === pricing.depositAmountJpy &&
-      session.currency === "jpy"
-
-    if (!paid) {
+    if (session.payment_status !== "paid") {
       return Response.json({ status: "incomplete" })
     }
+    const pricing = bookingPricingFromMetadata(session.metadata ?? {}, session.amount_total, session.currency)
+    if (await bookingWasCancelled(session.id)) return Response.json({ status: "cancelled" })
 
     if (!eventId) {
       return Response.json({ status: "invalid" }, { status: 400 })
@@ -63,6 +57,7 @@ export async function GET(request: Request) {
       metadata.slot_start &&
       metadata.slot_end
         ? {
+            cancellationPolicy: cancellationPolicyFromMetadata(metadata),
             balanceDueJpy: pricing.balanceDueJpy,
             bookingReference: metadata.booking_reference,
             customerEmail:

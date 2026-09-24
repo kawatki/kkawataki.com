@@ -1,3 +1,5 @@
+import { DEPOSIT_PERCENT } from "@/lib/booking-policy"
+
 export const BOOKING_TIME_ZONE = "Asia/Tokyo"
 export const BOOKING_INCREMENT_MINUTES = 30
 export const PREFERRED_BOOKING_MINUTES = 4 * 60
@@ -8,8 +10,8 @@ export const FALLBACK_BOOKING_MINUTES = [
   2 * 60,
   MINIMUM_BOOKING_MINUTES,
 ] as const
-export const DEPOSIT_PERCENT = 25
-export const DEPOSIT_TERMS_VERSION = "2026-07-30-v2"
+export { DEPOSIT_PERCENT } from "@/lib/booking-policy"
+export const DEPOSIT_TERMS_VERSION = "2026-09-24-v3"
 export const CHECKOUT_HOLD_MINUTES = 10
 export const STRIPE_CHECKOUT_EXPIRY_MINUTES = 30
 
@@ -67,6 +69,7 @@ export type BookingPricing = {
 }
 
 export type BookingReceipt = {
+  cancellationPolicy: import("@/lib/booking-policy").CancellationPolicy
   balanceDueJpy: number
   bookingReference: string
   customerEmail: string
@@ -462,7 +465,7 @@ export function parseBookingRequest(value: unknown): BookingRequest {
     throw new Error("Choose an available start and end time.")
   }
   if (!depositTermsAccepted) {
-    throw new Error("Please agree to the non-refundable deposit policy.")
+    throw new Error("Please agree to the deposit and cancellation policy.")
   }
 
   return {

@@ -1,10 +1,12 @@
 import type Stripe from "stripe"
 
-import { getBookingPricing } from "@/lib/booking"
+import { bookingPricingFromMetadata } from "@/lib/booking-policy"
+import { bookingWasCancelled } from "@/lib/cancellation-store"
 import {
   confirmPaidBooking,
   deleteHoldByStripeSession,
 } from "@/lib/google-calendar"
+import { createStripeCommerceCheckoutTask } from "@/lib/google-commerce-tasks"
 import { createStripeCustomRequestTask } from "@/lib/google-tasks"
 import { requiredEnv } from "@/lib/server-config"
 import { getStripe, getStripeCryptoProvider } from "@/lib/stripe"
@@ -41,24 +43,13 @@ async function fulfillCheckout(
     await fulfillCustomRequestCheckout(session, paidAt)
     return
   }
-  if (metadata.package_checkout) {
+  if (metadata.item_checkout || metadata.package_checkout) {
+    await fulfillCommerceCheckout(session, paidAt)
     return
   }
 
-  const hasVariablePricing = Boolean(metadata.booking_duration_minutes)
-  const durationMinutes = Number(
-    metadata.booking_duration_minutes ?? 4 * 60
-  )
-  const pricing = getBookingPricing(durationMinutes)
-  if (
-    session.amount_total !== pricing.depositAmountJpy ||
-    session.currency !== "jpy" ||
-    (hasVariablePricing &&
-      (metadata.deposit_amount_jpy !== String(pricing.depositAmountJpy) ||
-        metadata.service_total_jpy !== String(pricing.serviceTotalJpy)))
-  ) {
-    throw new Error("Paid Checkout Session has invalid pricing metadata.")
-  }
+  if (await bookingWasCancelled(session.id)) return
+  const pricing = bookingPricingFromMetadata(metadata, session.amount_total, session.currency)
 
   const email = session.customer_details?.email ?? session.customer_email
   const eventId = metadata.booking_event_id
@@ -102,6 +93,105 @@ async function fulfillCheckout(
 
   if ("conflict" in result) {
     await refundConflictingPayment(session)
+  }
+}
+
+async function fulfillCommerceCheckout(
+  session: Stripe.Checkout.Session,
+  paidAt: number
+) {
+  const metadata = session.metadata ?? {}
+  const amountJpy = Number(metadata.item_total_jpy)
+  const email = session.customer_details?.email ?? session.customer_email
+  const reference = metadata.item_reference ?? metadata.package_reference ?? ""
+
+  if (
+    session.currency !== "jpy" ||
+    session.amount_total !== amountJpy ||
+    !Number.isInteger(amountJpy) ||
+    !email ||
+    !metadata.customer_name ||
+    !reference ||
+    !metadata.item_summary
+  ) {
+    throw new Error("Paid commerce Checkout Session is missing metadata.")
+  }
+
+  const itemLines = parseCommerceItemLines(metadata.item_lines)
+
+  await createStripeCommerceCheckoutTask({
+    amountJpy,
+    email,
+    itemIds: metadata.item_ids ?? metadata.item_id ?? "",
+    itemKind: metadata.item_kind ?? "",
+    itemLines,
+    itemSummary: metadata.item_summary,
+    name: metadata.customer_name,
+    notes: metadata.item_notes ?? "",
+    paidAt,
+    preferredDate: metadata.preferred_date ?? "",
+    reference,
+    requiresShipping: metadata.item_requires_shipping === "true",
+    sessionId: session.id,
+    shippingAddress:
+      metadata.item_requires_shipping === "true"
+        ? {
+            addressLine1: metadata.shipping_address_line_1 ?? "",
+            addressLine2: metadata.shipping_address_line_2 ?? "",
+            city: metadata.shipping_city ?? "",
+            country: metadata.shipping_country ?? "",
+            postalCode: metadata.shipping_postal_code ?? "",
+            region: metadata.shipping_region ?? "",
+          }
+        : null,
+    socialHandle: metadata.social_handle ?? "",
+    socialPlatform:
+      metadata.social_platform === "discord" ||
+      metadata.social_platform === "instagram" ||
+      metadata.social_platform === "line" ||
+      metadata.social_platform === "telegram" ||
+      metadata.social_platform === "whatsapp" ||
+      metadata.social_platform === "x"
+        ? metadata.social_platform
+        : "none",
+  })
+}
+
+function parseCommerceItemLines(value: string | undefined) {
+  if (!value) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed.flatMap((line) => {
+      const candidate = line as Record<string, unknown>
+      if (
+        typeof candidate.i !== "string" ||
+        typeof candidate.k !== "string" ||
+        typeof candidate.s !== "string" ||
+        typeof candidate.a !== "number" ||
+        !Number.isInteger(candidate.a)
+      ) {
+        return []
+      }
+
+      return [
+        {
+          amountJpy: candidate.a,
+          itemId: candidate.i,
+          itemKind: candidate.k,
+          itemSummary: candidate.s,
+          requiresShipping: candidate.sh === true,
+        },
+      ]
+    })
+  } catch {
+    return []
   }
 }
 
@@ -156,7 +246,11 @@ async function expireCheckoutHold(session: Stripe.Checkout.Session) {
   }
 
   const metadata = session.metadata ?? {}
-  if (metadata.custom_request_terms_accepted || metadata.package_checkout) {
+  if (
+    metadata.custom_request_terms_accepted ||
+    metadata.item_checkout ||
+    metadata.package_checkout
+  ) {
     return
   }
 
@@ -166,6 +260,29 @@ async function expireCheckoutHold(session: Stripe.Checkout.Session) {
   }
 
   await deleteHoldByStripeSession(eventId, session.id)
+}
+
+// Failed events can arrive out of order. Check Stripe's current state first,
+// and expire the checkout before releasing its hold so a retry cannot pay it.
+async function releaseFailedPayment(intent: Stripe.PaymentIntent) {
+  const eventId = intent.metadata.booking_event_id
+  if (!eventId || !intent.metadata.booking_reference) return
+  const current = await getStripe().paymentIntents.retrieve(intent.id)
+  if (!["requires_payment_method", "canceled"].includes(current.status)) return
+  const sessions = await getStripe().checkout.sessions.list({ payment_intent: intent.id, limit: 10 })
+  for (const candidate of sessions.data) {
+    if (candidate.metadata?.booking_event_id !== eventId) continue
+    let session = await getStripe().checkout.sessions.retrieve(candidate.id)
+    if (session.payment_status !== "unpaid") continue
+    if (session.status === "open") {
+      // A concurrent successful payment makes expiration fail; retry the webhook
+      // instead of releasing a newly paid customer's time.
+      session = await getStripe().checkout.sessions.expire(session.id)
+    }
+    if (session.status === "expired" && session.payment_status === "unpaid") {
+      await deleteHoldByStripeSession(eventId, session.id)
+    }
+  }
 }
 
 export async function POST(request: Request) {
@@ -193,6 +310,8 @@ export async function POST(request: Request) {
   try {
     if (event.type === "checkout.session.completed") {
       await fulfillCheckout(event.data.object, event.created)
+    } else if (event.type === "payment_intent.payment_failed" || event.type === "payment_intent.canceled") {
+      await releaseFailedPayment(event.data.object)
     } else if (event.type === "checkout.session.expired") {
       await expireCheckoutHold(event.data.object)
     }

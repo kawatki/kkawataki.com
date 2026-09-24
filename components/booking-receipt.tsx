@@ -1,3 +1,5 @@
+import Link from "next/link"
+import { cancellationPolicyText } from "@/lib/booking-policy"
 import type { BookingReceipt as BookingReceiptData } from "@/lib/booking"
 
 function yen(amount: number) {
@@ -89,12 +91,12 @@ export function BookingReceipt({ receipt }: { receipt: BookingReceiptData }) {
 
         <div className="rounded-xl bg-cream/70 px-4 py-4 text-sm leading-6 text-ink/60">
           <p>
-            The deposit is non-refundable if you cancel or do not attend. If I
-            cancel, it will be refunded.
+            {cancellationPolicyText(receipt.cancellationPolicy)}
           </p>
+          <Link href="/cancel" className="mt-3 inline-block underline">Cancel this booking</Link>
           <p className="mt-2">
-            You also cover transportation costs and any food or drinks during
-            our time together. A {receipt.transportBufferMinutes / 60}-hour
+            You also cover transportation costs (approximately 3,000–4,000 JPY)
+            and any food or drinks during our time together. A {receipt.transportBufferMinutes / 60}-hour
             transportation buffer is reserved after your booking.
           </p>
         </div>

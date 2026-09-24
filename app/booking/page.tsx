@@ -1,3 +1,5 @@
+import Link from "next/link"
+import { DEPOSIT_PERCENT, cancellationPolicyText } from "@/lib/booking-policy"
 import type { Metadata } from "next"
 import { CalendarCheck, Clock3, CreditCard, Info } from "lucide-react"
 
@@ -11,7 +13,7 @@ export const metadata: Metadata = {
 
 const bookingFacts = [
   { icon: Clock3, label: "Duration", value: "4h preferred, flexible" },
-  { icon: CreditCard, label: "To reserve", value: "25% deposit" },
+  { icon: CreditCard, label: "To reserve", value: `${DEPOSIT_PERCENT}% deposit` },
   { icon: CalendarCheck, label: "Confirmation", value: "After payment" },
 ]
 
@@ -71,11 +73,13 @@ export default async function BookingPage({
           <div>
             <h2 className="font-display text-2xl">Before you book</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-paper/65">
-              The 25% deposit reserves your time and is deducted from the final
+              The {DEPOSIT_PERCENT}% deposit reserves your time and is deducted from the final
               amount. Longer bookings have a proportionally larger deposit.
               The remaining balance is paid in person. Before Stripe opens, you
-              must review and accept the non-refundable deposit policy.
+              must review and accept the deposit and cancellation policy.
             </p>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-paper/65">{cancellationPolicyText()}</p>
+            <Link href="/cancel" className="mt-3 inline-block underline">Cancel a booking</Link>
           </div>
         </div>
       </section>
