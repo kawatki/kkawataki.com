@@ -101,3 +101,30 @@ test('failed payment expires its session before releasing its hold',async()=>{co
 test('delayed failure notification cannot release a successful retry',async()=>{const h=webhookHarness({status:'succeeded'});assert.equal((await h.post()).status,200);assert.deepEqual(h.calls,[])})
 test('payment winning an expiration race preserves the hold',async()=>{const h=webhookHarness({expireFails:true});assert.equal((await h.post()).status,500);assert.deepEqual(h.calls,['expire'])})
 test('unpaid completed event never makes a booking',async()=>{const h=webhookHarness({unpaidCompleted:true});assert.equal((await h.post()).status,200);assert.deepEqual(h.calls,[])})
+
+
+test('multi-day personal trips marked Free block every included day, but not the exclusive end date', async () => {
+ const trip={id:'personal-trip',status:'confirmed',transparency:'transparent',start:{date:'2026-09-26'},end:{date:'2026-10-01'}}
+ const days=['2026-09-25','2026-09-26','2026-09-27','2026-09-28','2026-09-29','2026-09-30','2026-10-01']
+ const candidates=days.map(date=>({...slot,id:date,date,start:date+'T12:00:00+09:00',end:date+'T13:00:00+09:00'}))
+ const h=calendarHarness([trip])
+ assert.deepEqual((await h.api.listAvailableSlots(candidates)).map(s=>s.date),['2026-09-25','2026-10-01'])
+ assert.equal(h.mutations.length,0)
+})
+test('timed personal plans block availability regardless of Google Free/Busy setting', async () => {
+ for(const transparency of ['transparent','opaque',undefined]) {
+  const h=calendarHarness([{id:'personal',status:'confirmed',transparency,start:{dateTime:slot.start},end:{dateTime:slot.end}}])
+  assert.equal((await h.api.listAvailableSlots([slot])).length,0)
+  assert.equal(h.mutations.length,0)
+ }
+})
+test('cancelled personal plans do not block availability', async () => {
+ const h=calendarHarness([{id:'cancelled-personal',status:'cancelled',start:{dateTime:slot.start},end:{dateTime:slot.end}}])
+ assert.equal((await h.api.listAvailableSlots([slot])).length,1)
+})
+test('a personal all-day plan added during checkout prevents payment confirmation', async () => {
+ const h=calendarHarness([heldEvent(),{id:'personal-trip',status:'confirmed',transparency:'transparent',start:{date:'2026-10-15'},end:{date:'2026-10-16'}}])
+ assert.deepEqual(await h.api.confirmPaidBooking(paidInput),{conflict:true})
+ assert.equal(h.events.get(slot.id).extendedProperties.private.bookingState,'conflict')
+ assert.equal(h.events.get('personal-trip').status,'confirmed')
+})

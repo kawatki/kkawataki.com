@@ -250,10 +250,11 @@ function holdBody(
 
 function isInactive(event: GoogleEvent, now = Math.floor(Date.now() / 1000)) {
   const properties = bookingProperties(event)
+  // Personal plans block bookings even when Google marks them as Free.
+  // Only cancelled events and inactive website booking records are ignored.
   return event.status === "cancelled" ||
     ["expired", "conflict", "cancelled"].includes(properties.bookingState) ||
-    (properties.bookingState === "hold" && Number(properties.holdExpiresAt || 0) <= now) ||
-    (event.transparency === "transparent" && properties.bookingState !== "hold" && properties.bookingState !== "paid")
+    (properties.bookingState === "hold" && Number(properties.holdExpiresAt || 0) <= now)
 }
 
 // Use the observed version: never remove an event confirmed or reused since it was listed.
