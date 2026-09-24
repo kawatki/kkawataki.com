@@ -11,7 +11,7 @@ A Next.js booking site with a payment-gated Google Calendar workflow.
    Stripe resource is created.
 3. The server reserves the website slot for exactly 10 minutes. A tentative,
    reminder-free calendar placeholder is marked free until payment succeeds.
-4. Stripe Checkout collects a deposit, currently 25% of the service total.
+4. Stripe Checkout collects a deposit, currently 50% of the service total.
    Deposit and cancellation percentages are configured independently in
    `lib/booking-policy.ts`.
 5. A signed Stripe webhook changes the hold into a confirmed calendar event
@@ -160,8 +160,8 @@ The page does not send a verification email; possession of both details authoriz
 the cancellation. No email delivery service is required.
 
 New bookings snapshot their price and cancellation policy in Stripe metadata.
-Current refunds are 50% of the amount paid with at least 30 days’ notice, 25%
-with at least 7 days, and 0% otherwise. These are exact 24-hour periods before
+Current refunds are 50% of the amount paid with at least 14 days’ notice, 25%
+with at least 7 days, 5% with at least 24 hours, and 0% otherwise. These are exact 24-hour periods before
 the appointment starts. JPY refunds round down to whole yen. Old bookings without
 a policy snapshot retain their original non-refundable terms.
 

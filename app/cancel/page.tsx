@@ -15,7 +15,7 @@ export default function CancelPage() {
         <aside className="mt-10 rounded-2xl bg-cream p-6">
           <h2 className="font-display text-2xl">Cancellation policy</h2>
           <dl className="mt-4 space-y-3 text-base">
-            {[["30 days or more", CANCELLATION_POLICY.thirtyDaysPercent], ["7 days to less than 30 days", CANCELLATION_POLICY.sevenDaysPercent], ["Less than 7 days", CANCELLATION_POLICY.latePercent]].map(([label, percent]) => (
+            {[["14 days or more", CANCELLATION_POLICY.thirtyDaysPercent], ["7 days to less than 14 days", CANCELLATION_POLICY.sevenDaysPercent], ["24 hours to less than 7 days", CANCELLATION_POLICY.oneDayPercent], ["Less than 24 hours", CANCELLATION_POLICY.latePercent]].map(([label, percent]) => (
               <div key={label} className="flex justify-between gap-4"><dt>{label}</dt><dd className="font-semibold">{percent}% back</dd></div>
             ))}
           </dl>

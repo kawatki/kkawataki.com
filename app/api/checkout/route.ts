@@ -179,6 +179,8 @@ export async function POST(request: Request) {
         deposit_terms_accepted: "true",
         deposit_terms_version: DEPOSIT_TERMS_VERSION,
         cancellation_policy_version: CANCELLATION_POLICY.version,
+        cancellation_early_notice_days: String(CANCELLATION_POLICY.earlyNoticeDays),
+        cancellation_1_day_percent: String(CANCELLATION_POLICY.oneDayPercent),
         cancellation_30_days_percent: String(CANCELLATION_POLICY.thirtyDaysPercent),
         cancellation_7_days_percent: String(CANCELLATION_POLICY.sevenDaysPercent),
         cancellation_late_percent: String(CANCELLATION_POLICY.latePercent),

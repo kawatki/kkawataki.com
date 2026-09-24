@@ -12,7 +12,7 @@ export const FALLBACK_BOOKING_MINUTES = [
   MINIMUM_BOOKING_MINUTES,
 ] as const
 export { DEPOSIT_PERCENT } from "@/lib/booking-policy"
-export const DEPOSIT_TERMS_VERSION = "2026-09-24-v3"
+export const DEPOSIT_TERMS_VERSION = "2026-09-25-v4"
 export const CHECKOUT_HOLD_MINUTES = 10
 export const STRIPE_CHECKOUT_EXPIRY_MINUTES = 30
 

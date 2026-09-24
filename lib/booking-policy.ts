@@ -1,7 +1,9 @@
 // Independent settings. Checkout stores a snapshot so edits affect new bookings only.
-export const DEPOSIT_PERCENT = 25
+export const DEPOSIT_PERCENT = 50
 export const CANCELLATION_POLICY = {
-  version: "2026-09-24-v1",
+  version: "2026-09-25-v2",
+  earlyNoticeDays: 14,
+  oneDayPercent: 5,
   thirtyDaysPercent: 50,
   sevenDaysPercent: 25,
   latePercent: 0,
@@ -9,13 +11,19 @@ export const CANCELLATION_POLICY = {
 
 export type CancellationPolicy = {
   version: string
+  earlyNoticeDays?: number
+  oneDayPercent?: number
   thirtyDaysPercent: number
   sevenDaysPercent: number
   latePercent: number
 }
 
 export function cancellationPolicyText(policy: CancellationPolicy = CANCELLATION_POLICY) {
-  return `${policy.thirtyDaysPercent}% back with at least 30 days’ notice, ${policy.sevenDaysPercent}% with at least 7 days but less than 30 days, and ${policy.latePercent}% with less than 7 days. Refunds apply to the amount paid, not the full booking price. No-shows receive no refund. If I cancel, you receive a full refund.`
+  const earlyDays = policy.earlyNoticeDays ?? 30
+  const lateText = policy.oneDayPercent === undefined
+    ? `${policy.latePercent}% with less than 7 days`
+    : `${policy.oneDayPercent}% with at least 24 hours but less than 7 days, and ${policy.latePercent}% with less than 24 hours`
+  return `${policy.thirtyDaysPercent}% back with at least ${earlyDays} days’ notice, ${policy.sevenDaysPercent}% with at least 7 days but less than ${earlyDays} days, and ${lateText}. Refunds apply to the amount paid, not the full booking price. No-shows receive no refund. If I cancel, you receive a full refund.`
 }
 
 export function cancellationPolicyFromMetadata(metadata: Record<string, string>): CancellationPolicy {
@@ -27,7 +35,13 @@ export function cancellationPolicyFromMetadata(metadata: Record<string, string>)
   if (values.some((value) => !Number.isInteger(value) || value < 0 || value > 100)) {
     throw new Error("Invalid cancellation policy snapshot.")
   }
-  return { version: metadata.cancellation_policy_version, thirtyDaysPercent: values[0], sevenDaysPercent: values[1], latePercent: values[2] }
+  const hasNewTiers = metadata.cancellation_early_notice_days !== undefined || metadata.cancellation_1_day_percent !== undefined || metadata.cancellation_policy_version === "2026-09-25-v2"
+  const earlyNoticeDays = Number(metadata.cancellation_early_notice_days)
+  const oneDayPercent = Number(metadata.cancellation_1_day_percent)
+  if (hasNewTiers && (!Number.isInteger(earlyNoticeDays) || earlyNoticeDays <= 7 || !Number.isInteger(oneDayPercent) || oneDayPercent < 0 || oneDayPercent > 100)) {
+    throw new Error("Invalid cancellation policy snapshot.")
+  }
+  return { version: metadata.cancellation_policy_version, thirtyDaysPercent: values[0], sevenDaysPercent: values[1], latePercent: values[2], ...(hasNewTiers ? { earlyNoticeDays, oneDayPercent } : {}) }
 }
 
 export function cancellationRefund(amountPaid: number, start: string, policy: CancellationPolicy, now = Date.now()) {
@@ -36,7 +50,7 @@ export function cancellationRefund(amountPaid: number, start: string, policy: Ca
     throw new Error("This booking can no longer be cancelled online.")
   }
   const day = 24 * 60 * 60 * 1000
-  const percent = notice >= 30 * day ? policy.thirtyDaysPercent : notice >= 7 * day ? policy.sevenDaysPercent : policy.latePercent
+  const percent = notice >= (policy.earlyNoticeDays ?? 30) * day ? policy.thirtyDaysPercent : notice >= 7 * day ? policy.sevenDaysPercent : notice >= day && policy.oneDayPercent !== undefined ? policy.oneDayPercent : policy.latePercent
   return { percent, amountJpy: Math.floor(amountPaid * percent / 100) }
 }
 

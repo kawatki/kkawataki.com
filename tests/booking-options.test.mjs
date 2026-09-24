@@ -13,7 +13,7 @@ test('all group sizes and recording choices produce matching checkout and refund
   assert.equal(bookingPriceMultiplier(peopleCount,faceRecordingConsent),multiplier)
   const p=getBookingPricing(120,options)
   assert.equal(p.serviceTotalJpy,base.serviceTotalJpy*multiplier)
-  assert.equal(p.depositAmountJpy,Math.ceil(p.serviceTotalJpy*.25))
+  assert.equal(p.depositAmountJpy,Math.ceil(p.serviceTotalJpy*.50))
   assert.equal(p.depositAmountJpy+p.balanceDueJpy,p.serviceTotalJpy)
   const metadata={booking_duration_minutes:'120',rate_jpy_per_30_minutes:String(p.rateJpyPer30Minutes),service_total_jpy:String(p.serviceTotalJpy),deposit_amount_jpy:String(p.depositAmountJpy),deposit_percent:String(p.depositPercent)}
   assert.equal(bookingPricingFromMetadata(metadata,p.depositAmountJpy,'jpy').serviceTotalJpy,p.serviceTotalJpy)

@@ -75,7 +75,7 @@ function harness({ days = 40, legacy = false, priorRefund = 0 } = {}) {
 const base = loader({})('@/lib/booking-policy')
 test('refund boundaries are exact and independent of the deposit setting', () => {
   const now = Date.parse('2026-09-24T00:00:00+09:00')
-  for (const [offset, expected] of [[30*86400000,50],[30*86400000-1,25],[7*86400000,25],[7*86400000-1,0]]) {
+  for (const [offset, expected] of [[30*86400000,50],[14*86400000,50],[14*86400000-1,25],[7*86400000,25],[7*86400000-1,5],[86400000,5],[86400000-1,0]]) {
     const result = base.cancellationRefund(2000, new Date(now+offset).toISOString(), base.CANCELLATION_POLICY, now)
     assert.equal(result.percent, expected)
     assert.equal(result.amountJpy, 2000 * expected / 100)
@@ -191,4 +191,15 @@ test('confirmation API rejects other origins and invalid actions', async () => {
   const request=(origin,body) => new Request('https://example.com/api/cancel',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(body)})
   assert.equal((await route.POST(request('https://evil.example',{}))).status,403)
   assert.equal((await route.POST(request('https://example.com',{action:'delete'}))).status,400)
+})
+
+test('new cancellation metadata round-trips and old paid bookings retain original tiers', () => {
+ const snapshot=base.cancellationPolicyFromMetadata({cancellation_policy_version:'2026-09-25-v2',cancellation_early_notice_days:'14',cancellation_1_day_percent:'5',cancellation_30_days_percent:'50',cancellation_7_days_percent:'25',cancellation_late_percent:'0'})
+ assert.deepEqual(snapshot,base.CANCELLATION_POLICY)
+ const old=base.cancellationPolicyFromMetadata({cancellation_policy_version:'2026-09-24-v1',cancellation_30_days_percent:'50',cancellation_7_days_percent:'25',cancellation_late_percent:'0'})
+ const now=Date.now()
+ assert.equal(base.cancellationRefund(2000,new Date(now+20*86400000).toISOString(),old,now).percent,25)
+ assert.equal(base.cancellationRefund(2000,new Date(now+3*86400000).toISOString(),old,now).percent,0)
+ assert.throws(()=>base.cancellationPolicyFromMetadata({cancellation_policy_version:'2026-09-25-v2',cancellation_30_days_percent:'50',cancellation_7_days_percent:'25',cancellation_late_percent:'0'}))
+ assert.equal(base.DEPOSIT_PERCENT,50)
 })
