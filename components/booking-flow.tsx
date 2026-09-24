@@ -25,6 +25,7 @@ import {
   X,
 } from "lucide-react"
 
+import { bookingPriceMultiplier } from "@/lib/booking-options"
 import { DEPOSIT_PERCENT, cancellationPolicyText } from "@/lib/booking-policy"
 import type { BookingPricing, MessagingPlatform } from "@/lib/booking"
 import { cn } from "@/lib/utils"
@@ -348,6 +349,11 @@ export function BookingFlow({
     end: "23:00",
     start: "09:00",
   })
+  const [peopleCount, setPeopleCount] = useState("1")
+  const [faceRecordingConsent, setFaceRecordingConsent] = useState(false)
+  const [surroundingsRecordingConsent, setSurroundingsRecordingConsent] = useState(false)
+  const groupSize = Number(peopleCount)
+  const validGroupSize = Number.isInteger(groupSize) && groupSize >= 1 && groupSize <= 6
   const [pricing, setPricing] = useState<BookingPricing | null>(null)
   const [transportBufferMinutes, setTransportBufferMinutes] = useState(60)
   const [loading, setLoading] = useState(true)
@@ -565,26 +571,29 @@ export function BookingFlow({
     ].filter((row) => row.length)
   }, [activeTimelineTimes])
   const selectedPricing = useMemo(() => {
-    if (!activePricing || !selectedStart || !selectedEnd) return null
+    if (!activePricing || !selectedStart || !selectedEnd || !validGroupSize) return null
 
     const durationMinutes =
       timeToMinutes(selectedEnd) - timeToMinutes(selectedStart)
     if (durationMinutes < activePricing.minimumDurationMinutes) return null
 
+    const multiplier = bookingPriceMultiplier(groupSize, surroundingsRecordingConsent)
+    const adjustedRate = activePricing.rateJpyPer30Minutes * multiplier
     const serviceTotalJpy =
-      activePricing.rateJpyPer30Minutes *
+      adjustedRate *
       (durationMinutes / activePricing.bookingIncrementMinutes)
     const depositAmountJpy = Math.ceil(
       (serviceTotalJpy * activePricing.depositPercent) / 100
     )
     return {
       ...activePricing,
+      rateJpyPer30Minutes: adjustedRate,
       balanceDueJpy: serviceTotalJpy - depositAmountJpy,
       depositAmountJpy,
       durationHours: durationMinutes / 60,
       serviceTotalJpy,
     }
-  }, [activePricing, selectedEnd, selectedStart])
+  }, [activePricing, selectedEnd, selectedStart, validGroupSize, groupSize, surroundingsRecordingConsent])
 
   useEffect(() => {
     if (selectedPricing) {
@@ -686,6 +695,9 @@ export function BookingFlow({
     try {
       const response = await fetch("/api/checkout/", {
         body: JSON.stringify({
+          peopleCount: groupSize,
+          faceRecordingConsent,
+          surroundingsRecordingConsent,
           depositTermsAccepted: true,
           email: form.get("email"),
           endTime: selectedEnd,
@@ -1166,6 +1178,24 @@ export function BookingFlow({
               placeholder="you@example.com"
             />
           </label>
+          <fieldset className="grid gap-4 rounded-2xl border border-paper/20 p-4">
+            <legend className="px-2 text-sm font-semibold">Your group and recording preferences</legend>
+            <label className="grid gap-2 text-sm font-semibold">
+              How many people? (Including you)
+              <input type="number" name="peopleCount" min={1} max={6} step={1} required value={peopleCount} onChange={(event) => setPeopleCount(event.target.value)} className="h-12 w-full rounded-xl border border-paper/20 bg-paper/10 px-4 text-paper" />
+            </label>
+            <p className="text-sm text-paper/70">1–3 people: standard price. 4–6 people: 2× price. Maximum 6 people.</p>
+            <label className="flex items-start gap-3 text-sm">
+              <input type="checkbox" checked={faceRecordingConsent} onChange={(event) => setFaceRecordingConsent(event.target.checked)} className="mt-1 size-5 shrink-0" />
+              <span>I agree to having my face recorded. <span className="text-paper/70">Optional; this does not affect the price. Each guest decides whether their face may be recorded.</span></span>
+            </label>
+            <label className="flex items-start gap-3 text-sm">
+              <input type="checkbox" checked={surroundingsRecordingConsent} onChange={(event) => setSurroundingsRecordingConsent(event.target.checked)} className="mt-1 size-5 shrink-0" />
+              <span>I agree to filming food and surroundings without showing guests’ faces. <span className="text-paper/70">Required for the standard price. Leave unchecked to decline food and surroundings filming, at 2× the group price.</span></span>
+            </label>
+            <p className="text-sm font-semibold">Price = base price × group multiplier × filming multiplier. 4–6 people without filming: 4× the base price.</p>
+            {selectedPricing && <p className="text-sm">Your service total: {yen(selectedPricing.serviceTotalJpy)} · {selectedPricing.depositPercent}% deposit: {yen(selectedPricing.depositAmountJpy)}</p>}
+          </fieldset>
           <fieldset className="grid gap-3">
             <legend className="text-sm font-semibold">
               Where should I message you?
@@ -1414,8 +1444,9 @@ export function BookingFlow({
                 {selectedPricing && (
                   <div className="mt-5 rounded-2xl border border-ink/10 bg-card p-5">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink/45">
-                      Your booking · {selectedPricing.durationHours} hours
+                      Your booking · {selectedPricing.durationHours} hours · {groupSize} people
                     </p>
+                    <p className="mt-2 text-sm">Group: {Math.ceil(groupSize / 3)}× · Filming: {surroundingsRecordingConsent ? 1 : 2}×. Face recording: {faceRecordingConsent ? "agreed" : "not agreed"}.</p>
                     <dl className="mt-4 grid gap-3 text-sm">
                       <div className="flex items-center justify-between gap-4">
                         <dt className="text-ink/60">

@@ -110,7 +110,7 @@ export async function POST(request: Request) {
         { status: 409 }
       )
     }
-    const pricing = getBookingPricing(slot.durationMinutes)
+    const pricing = getBookingPricing(slot.durationMinutes, booking)
     const bookingReference = createBookingReference()
     slotId = slot.id
     holdToken = crypto.randomUUID()
@@ -144,7 +144,7 @@ export async function POST(request: Request) {
       customer_email: booking.email,
       custom_text: {
         submit: {
-          message: `Complete payment within ${CHECKOUT_HOLD_MINUTES} minutes to keep this time. Service rate: ¥${pricing.rateJpyPer30Minutes.toLocaleString("en-US")} per 30 minutes (¥${pricing.serviceTotalJpy.toLocaleString("en-US")} for ${pricing.durationHours} hours). The ${pricing.depositPercent}% deposit of ¥${pricing.depositAmountJpy.toLocaleString("en-US")} is deducted from the final amount. ${cancellationPolicyText()} You also cover transportation costs (approximately 3,000–4,000 JPY) and any food or drinks during our time together.`,
+          message: `Complete payment within ${CHECKOUT_HOLD_MINUTES} minutes to keep this time. ${booking.peopleCount} people. Face recording: ${booking.faceRecordingConsent ? "agreed" : "not agreed"}. Food and surroundings recording: ${booking.surroundingsRecordingConsent ? "agreed" : "not agreed (2× price)"}. Adjusted service rate: ¥${pricing.rateJpyPer30Minutes.toLocaleString("en-US")} per 30 minutes (¥${pricing.serviceTotalJpy.toLocaleString("en-US")} for ${pricing.durationHours} hours). The ${pricing.depositPercent}% deposit of ¥${pricing.depositAmountJpy.toLocaleString("en-US")} is deducted from the final amount. ${cancellationPolicyText()} You also cover transportation costs (approximately 3,000–4,000 JPY) and any food or drinks during our time together.`,
         },
       },
       expires_at: stripeExpiresAt,
@@ -166,6 +166,9 @@ export async function POST(request: Request) {
         booking_event_id: slot.id,
         booking_location: booking.location,
         booking_notes: booking.notes,
+        people_count: String(booking.peopleCount),
+        face_recording_consent: String(booking.faceRecordingConsent),
+        surroundings_recording_consent: String(booking.surroundingsRecordingConsent),
         booking_title: booking.title,
         customer_name: booking.name,
         alternate_contact: booking.alternateContact,

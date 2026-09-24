@@ -73,7 +73,7 @@ async function fulfillCheckout(
     eventId,
     location: metadata.booking_location ?? "",
     name: metadata.customer_name,
-    notes: metadata.booking_notes ?? "",
+    notes: [metadata.booking_notes ?? "", ...(metadata.people_count ? [`Group size: ${metadata.people_count}`, `Face recording consent: ${metadata.face_recording_consent === "true" ? "Yes" : "No"}`, `Food and surroundings recording consent: ${metadata.surroundings_recording_consent === "true" ? "Yes" : "No"}`] : [])].filter(Boolean).join("\n"),
     paidAt,
     rateJpyPer30Minutes: pricing.rateJpyPer30Minutes,
     sessionId: session.id,

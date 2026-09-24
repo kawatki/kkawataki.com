@@ -1,3 +1,4 @@
+import { bookingPriceMultiplier, parseBookingOptions, type BookingOptions } from "@/lib/booking-options"
 import { DEPOSIT_PERCENT } from "@/lib/booking-policy"
 
 export const BOOKING_TIME_ZONE = "Asia/Tokyo"
@@ -40,7 +41,7 @@ export type MessagingPlatform =
   | "whatsapp"
   | "x"
 
-export type BookingRequest = {
+export type BookingRequest = BookingOptions & {
   alternateContact: string
   date: string
   depositTermsAccepted: boolean
@@ -96,7 +97,8 @@ export function createBookingReference() {
 }
 
 export function getBookingPricing(
-  durationMinutes = PREFERRED_BOOKING_MINUTES
+  durationMinutes = PREFERRED_BOOKING_MINUTES,
+  options?: BookingOptions
 ): BookingPricing {
   if (
     !Number.isInteger(durationMinutes) ||
@@ -107,10 +109,11 @@ export function getBookingPricing(
   }
 
   const configuredRate = Number(process.env.BOOKING_RATE_JPY_PER_30_MINUTES)
-  const rateJpyPer30Minutes =
+  const baseRateJpyPer30Minutes =
     Number.isInteger(configuredRate) && configuredRate > 0
       ? configuredRate
       : DEFAULT_RATE_JPY_PER_30_MINUTES
+  const rateJpyPer30Minutes = baseRateJpyPer30Minutes * (options ? bookingPriceMultiplier(options.peopleCount, options.surroundingsRecordingConsent) : 1)
   const serviceTotalJpy =
     rateJpyPer30Minutes * (durationMinutes / BOOKING_INCREMENT_MINUTES)
   const depositAmountJpy = Math.ceil(
@@ -369,6 +372,7 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   }
 
   const input = value as Record<string, unknown>
+  const options = parseBookingOptions(input)
   const name = typeof input.name === "string" ? input.name.trim() : ""
   const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : ""
   const title = typeof input.title === "string" ? input.title.trim() : ""
@@ -469,6 +473,7 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   }
 
   return {
+    ...options,
     alternateContact,
     date,
     depositTermsAccepted,
