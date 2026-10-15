@@ -10,3 +10,22 @@ export const rateLimitCounters = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.key, table.windowStart] })]
 )
+
+// Durable cancellation ledger: one immutable refund entitlement per paid booking.
+export const bookingCancellations = sqliteTable("booking_cancellations", {
+  reference: text("reference").primaryKey(),
+  sessionId: text("session_id").notNull().unique(),
+  eventId: text("event_id").notNull(),
+  emailHash: text("email_hash").notNull(),
+  slotStart: text("slot_start").notNull(),
+  requestedAt: integer("requested_at").notNull(),
+  amountPaid: integer("amount_paid").notNull(),
+  refundPercent: integer("refund_percent").notNull(),
+  refundAmount: integer("refund_amount").notNull(),
+  paymentIntent: text("payment_intent").notNull(),
+  refundId: text("refund_id"),
+  refundStatus: text("refund_status").notNull().default("not_started"),
+  calendarReleased: integer("calendar_released").notNull().default(0),
+  lockToken: text("lock_token"),
+  lockedUntil: integer("locked_until").notNull().default(0),
+})

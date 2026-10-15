@@ -1,11 +1,12 @@
 "use client"
 
+import { ErrorToast } from "@/components/ui/toast"
+import { RichDescriptionEditor } from "@/components/rich-description-editor"
 import { FormEvent, useCallback, useMemo, useState } from "react"
 import { Checkbox } from "@base-ui/react/checkbox"
 import {
   ArrowRight,
   BadgeCheck,
-  Bitcoin,
   Check,
   Copy,
   CreditCard,
@@ -156,6 +157,8 @@ export function CustomRequestPayment({
   turnstileSiteKey: string
 }) {
   const [amountJpy, setAmountJpy] = useState(0)
+  const [notesText, setNotesText] = useState("")
+  const [notesHtml, setNotesHtml] = useState("")
   const [amountBtc, setAmountBtc] = useState(CUSTOM_REQUEST_MIN_AMOUNT_BTC)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card")
   const [socialPlatform, setSocialPlatform] =
@@ -336,6 +339,7 @@ export function CustomRequestPayment({
       return
     }
 
+    if (notesText.length > 450 || notesHtml.length > 1500) { setError("Please shorten your notes or links before continuing."); return }
     const formData = new FormData(event.currentTarget)
     setSubmitting(true)
 
@@ -353,7 +357,8 @@ export function CustomRequestPayment({
             ...paymentPayload,
             email: String(formData.get("email") ?? ""),
             name: String(formData.get("name") ?? ""),
-            notes: String(formData.get("notes") ?? ""),
+            notes: notesText,
+            notesHtml,
             requestTitle: String(formData.get("requestTitle") ?? ""),
               socialHandle:
               socialPlatform === "none"
@@ -449,20 +454,19 @@ export function CustomRequestPayment({
   return (
     <form
       onSubmit={requestCheckout}
-      className="mx-auto max-w-2xl rounded-3xl bg-ink p-6 text-paper shadow-2xl shadow-ink/15 sm:p-8"
+      className="mx-auto max-w-2xl rounded-3xl border border-ink/10 bg-card p-6 text-ink shadow-2xl shadow-ink/15 sm:p-8"
     >
       <span className="flex size-12 items-center justify-center rounded-full bg-jade-light text-ink">
         <Sparkles className="size-6" />
       </span>
-      <p className="eyebrow mt-7 text-paper/50">Private request payment</p>
+      <p className="eyebrow mt-7 text-ink/50">Private request payment</p>
       <h1 className="mt-3 font-display text-5xl leading-none sm:text-6xl">
         Custom payment.
       </h1>
-      <p className="mt-4 text-sm leading-6 text-paper/60">
+      <p className="mt-4 text-sm leading-6 text-ink/60">
         Use this page only if we already agreed on a custom amount. This payment
-        does not create a public booking slot or calendar event by itself. Card
-        is for normal pricing; BTC is for people who want to use Bitcoin as
-        real-world peer-to-peer money.
+        does not create a public booking slot or calendar event by itself.
+        Pay securely by card through Stripe.
       </p>
 
       <div className="mt-8 grid gap-5">
@@ -473,7 +477,7 @@ export function CustomRequestPayment({
             required
             maxLength={80}
             autoComplete="name"
-            className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light"
+            className="h-12 rounded-xl border border-ink/15 bg-ink/10 px-4 font-normal text-ink outline-none placeholder:text-ink/30 focus:border-jade-light"
             placeholder="Your nickname, e.g. Taki"
           />
         </label>
@@ -485,14 +489,14 @@ export function CustomRequestPayment({
             type="email"
             maxLength={254}
             autoComplete="email"
-            className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light"
+            className="h-12 rounded-xl border border-ink/15 bg-ink/10 px-4 font-normal text-ink outline-none placeholder:text-ink/30 focus:border-jade-light"
             placeholder="you@example.com"
           />
         </label>
-        <section className="grid gap-4 rounded-2xl border border-paper/15 bg-paper/5 p-4">
+        <section className="grid gap-4 rounded-2xl border border-ink/15 bg-ink/5 p-4">
           <div>
             <h2 className="text-sm font-semibold">Where else should I message you?</h2>
-            <p className="mt-1 text-xs leading-5 text-paper/45">
+            <p className="mt-1 text-xs leading-5 text-ink/45">
               Optional. Add this when the request needs quick back-and-forth.
             </p>
           </div>
@@ -507,7 +511,7 @@ export function CustomRequestPayment({
                 )
                 setBtcInstructions(null)
               }}
-              className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none focus:border-jade-light"
+              className="h-12 rounded-xl border border-ink/15 bg-ink/10 px-4 font-normal text-ink outline-none focus:border-jade-light"
             >
               {MESSAGING_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -517,7 +521,7 @@ export function CustomRequestPayment({
             </select>
           </label>
           {socialPlatform === "none" ? (
-            <p className="rounded-xl border border-paper/15 bg-paper/5 px-4 py-3 text-sm leading-6 text-paper/55">
+            <p className="rounded-xl border border-ink/15 bg-ink/5 px-4 py-3 text-sm leading-6 text-ink/55">
               I’ll use your email receipt and any existing conversation for this
               payment.
             </p>
@@ -531,7 +535,7 @@ export function CustomRequestPayment({
                     setWhatsAppCountryCode(event.target.value)
                     setBtcInstructions(null)
                   }}
-                  className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none focus:border-jade-light"
+                  className="h-12 rounded-xl border border-ink/15 bg-ink/10 px-4 font-normal text-ink outline-none focus:border-jade-light"
                   aria-label="WhatsApp country code"
                 >
                   {WHATSAPP_COUNTRY_CODES.map((country) => (
@@ -553,7 +557,7 @@ export function CustomRequestPayment({
                     setBtcInstructions(null)
                   }}
                   maxLength={30}
-                  className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light"
+                  className="h-12 rounded-xl border border-ink/15 bg-ink/10 px-4 font-normal text-ink outline-none placeholder:text-ink/30 focus:border-jade-light"
                   placeholder="Phone"
                 />
               </label>
@@ -567,9 +571,9 @@ export function CustomRequestPayment({
           ) : (
             <label className="grid gap-2 text-sm font-semibold">
               {messagingField.label}
-              <div className="flex h-12 overflow-hidden rounded-xl border border-paper/15 bg-paper/10 focus-within:border-jade-light">
+              <div className="flex h-12 overflow-hidden rounded-xl border border-ink/15 bg-ink/10 focus-within:border-jade-light">
                 {messagingField.prefix ? (
-                  <span className="flex items-center border-r border-paper/15 px-4 font-normal text-paper/45">
+                  <span className="flex items-center border-r border-ink/15 px-4 font-normal text-ink/45">
                     {messagingField.prefix}
                   </span>
                 ) : null}
@@ -579,7 +583,7 @@ export function CustomRequestPayment({
                   inputMode={messagingField.inputMode}
                   maxLength={messagingField.maxLength}
                   pattern={messagingField.pattern}
-                  className="min-w-0 flex-1 bg-transparent px-4 font-normal text-paper outline-none placeholder:text-paper/30"
+                  className="min-w-0 flex-1 bg-transparent px-4 font-normal text-ink outline-none placeholder:text-ink/30"
                   placeholder={messagingField.placeholder}
                   onChange={() => setBtcInstructions(null)}
                 />
@@ -617,10 +621,10 @@ export function CustomRequestPayment({
               }
               setBtcInstructions(null)
             }}
-            className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light"
+            className="h-12 rounded-xl border border-ink/15 bg-ink/10 px-4 font-normal text-ink outline-none placeholder:text-ink/30 focus:border-jade-light"
             placeholder={paymentMethod === "btc" ? "0.01" : "5000"}
           />
-          <span className="text-xs font-normal leading-5 text-paper/45">
+          <span className="text-xs font-normal leading-5 text-ink/45">
             {amountHelp}
           </span>
         </label>
@@ -631,24 +635,22 @@ export function CustomRequestPayment({
             required
             minLength={3}
             maxLength={100}
-            className="h-12 rounded-xl border border-paper/15 bg-paper/10 px-4 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light"
+            className="h-12 rounded-xl border border-ink/15 bg-ink/10 px-4 font-normal text-ink outline-none placeholder:text-ink/30 focus:border-jade-light"
             placeholder="Custom Tokyo help arranged with Taki"
           />
         </label>
-        <label className="grid gap-2 text-sm font-semibold">
-          Notes <span className="font-normal text-paper/40">Optional</span>
-          <textarea
-            name="notes"
-            maxLength={450}
-            rows={4}
-            className="resize-y rounded-xl border border-paper/15 bg-paper/10 px-4 py-3 font-normal text-paper outline-none placeholder:text-paper/30 focus:border-jade-light"
-            placeholder="Anything useful for the request..."
-          />
-        </label>
+        <div className="grid gap-2 text-sm font-semibold">
+          <p>Notes <span className="font-normal text-ink/40">Optional</span></p>
+          <div className="rounded-xl bg-card text-ink">
+            <RichDescriptionEditor label="Request notes" onChange={(text, html) => { setNotesText(text); setNotesHtml(html) }} invalid={notesText.length > 450 || notesHtml.length > 1500} />
+          </div>
+          <p className="text-xs font-normal text-ink/60">{notesText.length}/450 characters</p>
+          {(notesText.length > 450 || notesHtml.length > 1500) && <ErrorToast>Please shorten your notes or links.</ErrorToast>}
+        </div>
       </div>
 
       <div
-        className="mt-7 grid grid-cols-2 gap-2 rounded-2xl border border-paper/15 bg-paper/5 p-1"
+        className="mt-7 grid gap-2 rounded-2xl border border-ink/15 bg-ink/5 p-1"
         role="tablist"
         aria-label="Payment method"
       >
@@ -662,26 +664,12 @@ export function CustomRequestPayment({
             setPaymentMethod("card")
             setBtcInstructions(null)
           }}
-          className="flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-paper/55 transition hover:bg-paper/10 hover:text-paper aria-selected:bg-paper aria-selected:text-ink"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-ink/55 transition hover:bg-ink/10 hover:text-ink aria-selected:bg-jade aria-selected:text-paper"
         >
           <CreditCard className="size-4" />
           Card
         </button>
-        <button
-          type="button"
-          role="tab"
-          id="btc-payment-tab"
-          aria-controls="payment-method-details"
-          aria-selected={paymentMethod === "btc"}
-          onClick={() => {
-            setPaymentMethod("btc")
-            setBtcInstructions(null)
-          }}
-          className="flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-paper/55 transition hover:bg-paper/10 hover:text-paper aria-selected:bg-paper aria-selected:text-ink"
-        >
-          <Bitcoin className="size-4" />
-          BTC
-        </button>
+
       </div>
 
       <div
@@ -694,7 +682,7 @@ export function CustomRequestPayment({
       >
         <p className="text-sm font-semibold">Before you pay</p>
         {paymentMethod === "btc" ? (
-          <p className="mt-2 text-sm leading-6 text-paper/60">
+          <p className="mt-2 text-sm leading-6 text-ink/60">
             BTC is for someone who appreciates the peer-to-peer internet and
             wants to try Bitcoin as a real payment method connected to the real
             world. Because it is manual and harder to convert than card payment,
@@ -703,7 +691,7 @@ export function CustomRequestPayment({
             excluding the Bitcoin network/remittance fee.
           </p>
         ) : (
-          <p className="mt-2 text-sm leading-6 text-paper/60">
+          <p className="mt-2 text-sm leading-6 text-ink/60">
             This is a custom payment arranged directly with me. Stripe will send
             the payment receipt to your email. If this payment is connected to a
             booking, we will handle the details in our messages.
@@ -712,7 +700,7 @@ export function CustomRequestPayment({
       </div>
 
       {btcInstructions && (
-        <div className="mt-6 rounded-2xl border border-paper/15 bg-paper p-5 text-ink">
+        <div className="mt-6 rounded-2xl border border-ink/15 bg-paper p-5 text-ink">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold">BTC payment details</p>
@@ -872,12 +860,9 @@ export function CustomRequestPayment({
       )}
 
       {error && (
-        <p
-          role="alert"
-          className="mt-5 rounded-xl border border-vermilion/20 bg-vermilion/15 px-4 py-3 text-sm leading-6 text-vermilion"
-        >
+        <ErrorToast>
           {error}
-        </p>
+        </ErrorToast>
       )}
 
       {turnstileSiteKey ? (
@@ -889,19 +874,16 @@ export function CustomRequestPayment({
           />
         </div>
       ) : (
-        <p
-          role="alert"
-          className="mt-6 rounded-xl border border-vermilion/20 bg-vermilion/15 px-4 py-3 text-sm leading-6 text-vermilion"
-        >
+        <ErrorToast>
           Secure checkout is temporarily unavailable.
-        </p>
+        </ErrorToast>
       )}
 
-      <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-paper/15 p-4 text-sm leading-6 transition hover:bg-paper/5">
+      <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-4 text-sm leading-6 transition hover:bg-ink/5">
         <Checkbox.Root
           checked={termsAccepted}
           onCheckedChange={setTermsAccepted}
-          className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-paper/30 bg-paper/10 text-white outline-none transition data-[checked]:border-vermilion data-[checked]:bg-vermilion focus-visible:ring-2 focus-visible:ring-vermilion/35"
+          className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-ink/30 bg-ink/10 text-white outline-none transition data-[checked]:border-vermilion data-[checked]:bg-vermilion focus-visible:ring-2 focus-visible:ring-vermilion/35"
         >
           <Checkbox.Indicator>
             <Check className="size-3.5" strokeWidth={3} />
@@ -939,7 +921,7 @@ export function CustomRequestPayment({
         )}
       </button>
 
-      <p className="mt-4 flex items-center justify-center gap-2 text-xs text-paper/45">
+      <p className="mt-4 flex items-center justify-center gap-2 text-xs text-ink/45">
         <LockKeyhole className="size-3.5" />
         {paymentMethod === "btc"
           ? "BTC details are shown only after the protected request is saved"

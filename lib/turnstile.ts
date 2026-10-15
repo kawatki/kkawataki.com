@@ -58,7 +58,8 @@ function allowedHostnames(request: Request) {
 
 export async function verifyTurnstile(
   token: unknown,
-  request: Request
+  request: Request,
+  expectedAction = TURNSTILE_ACTION
 ) {
   if (
     typeof token !== "string" ||
@@ -112,8 +113,8 @@ export async function verifyTurnstile(
     (verifiedHostname !== "" && validHostnames.has(verifiedHostname))
   const actionMatches =
     testing ||
-    !result.action ||
-    result.action === TURNSTILE_ACTION
+    (expectedAction === TURNSTILE_ACTION && !result.action) ||
+    result.action === expectedAction
 
   if (
     !result.success ||

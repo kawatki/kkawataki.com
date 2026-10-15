@@ -16,6 +16,8 @@
   --color-vermilion: var(--vermilion);
   --color-jade: var(--jade);
   --color-jade-light: var(--jade-light);
+  --color-scrollbar-track: var(--scrollbar-track);
+  --color-scrollbar-thumb: var(--scrollbar-thumb);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -61,6 +63,8 @@
   --vermilion: #ce462f;
   --jade: #25594e;
   --jade-light: #9cc8b7;
+  --scrollbar-track: color-mix(in srgb, var(--cream) 78%, transparent);
+  --scrollbar-thumb: color-mix(in srgb, var(--ink) 28%, transparent);
   --font-body: Arial, "Helvetica Neue", sans-serif;
   --font-editorial: Georgia, "Times New Roman", serif;
   --font-code: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -105,6 +109,8 @@
   --vermilion: #e15b43;
   --jade: #96c1b2;
   --jade-light: #b5ddcf;
+  --scrollbar-track: color-mix(in srgb, var(--cream) 62%, transparent);
+  --scrollbar-thumb: color-mix(in srgb, var(--ink) 30%, transparent);
   --background: var(--paper);
   --foreground: var(--ink);
   --card: #1b1f1c;
@@ -135,7 +141,30 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
+
+  *::-webkit-scrollbar {
+    width: 0.375rem;
+    height: 0.375rem;
+  }
+
+  *::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    min-height: 3rem;
+    border-radius: 999px;
+    background: var(--scrollbar-thumb);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--ink) 42%, transparent);
+  }
+
   body {
     @apply bg-background text-foreground;
     text-rendering: optimizeLegibility;
@@ -165,28 +194,36 @@
     text-wrap: balance;
   }
 
+  .refined-scrollbar,
   .booking-dialog-scrollbar {
+    scrollbar-gutter: stable;
     scrollbar-width: thin;
-    scrollbar-color: color-mix(in srgb, var(--ink) 24%, transparent) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 
+  .refined-scrollbar::-webkit-scrollbar,
   .booking-dialog-scrollbar::-webkit-scrollbar {
-    width: 5px;
+    width: 0.375rem;
+    height: 0.375rem;
   }
 
+  .refined-scrollbar::-webkit-scrollbar-track,
   .booking-dialog-scrollbar::-webkit-scrollbar-track {
+    border-radius: 999px;
     background: transparent;
-    margin-block: 1.5rem;
+    margin-block: 1rem;
   }
 
+  .refined-scrollbar::-webkit-scrollbar-thumb,
   .booking-dialog-scrollbar::-webkit-scrollbar-thumb {
     min-height: 3rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--ink) 22%, transparent);
+    background: var(--scrollbar-thumb);
   }
 
+  .refined-scrollbar::-webkit-scrollbar-thumb:hover,
   .booking-dialog-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in srgb, var(--ink) 38%, transparent);
+    background: color-mix(in srgb, var(--ink) 42%, transparent);
   }
 
   .booking-guide-pulse {
@@ -252,4 +289,17 @@
 ::selection {
   background: var(--vermilion);
   color: white;
+}
+
+
+@keyframes booking-price-notice-nudge {
+  0%, 100% { translate: 0 0; }
+  35% { translate: 0 -3px; }
+  65% { translate: 0 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .booking-price-notice-nudge {
+    animation: booking-price-notice-nudge 700ms ease-in-out 350ms 2;
+  }
 }

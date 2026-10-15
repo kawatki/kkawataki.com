@@ -1,4 +1,5 @@
 import "server-only"
+import { bookingPricingFromMetadata, cancellationPolicyFromMetadata } from "@/lib/booking-policy"
 
 import type { BookingReceipt } from "@/lib/booking"
 import { bookingTransportBufferMinutes } from "@/lib/booking"
@@ -7,11 +8,6 @@ import { getStripe } from "@/lib/stripe"
 
 const BOOKING_REFERENCE_PATTERN =
   /^RJG-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/u
-
-function positiveInteger(value: string | null | undefined) {
-  const parsed = Number(value)
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
-}
 
 function maskEmail(email: string) {
   const [local, domain] = email.split("@")
@@ -44,14 +40,12 @@ export async function getPublicBookingReceipt(
     calendarBooking.stripeSessionId
   )
   const metadata = session.metadata ?? {}
-  const durationMinutes = positiveInteger(
-    metadata.booking_duration_minutes
-  )
-  const rateJpyPer30Minutes = positiveInteger(
-    metadata.rate_jpy_per_30_minutes
-  )
-  const serviceTotalJpy = positiveInteger(metadata.service_total_jpy)
-  const depositAmountJpy = positiveInteger(metadata.deposit_amount_jpy)
+  let pricing: ReturnType<typeof bookingPricingFromMetadata>
+  try {
+    pricing = bookingPricingFromMetadata(metadata, session.amount_total, session.currency)
+  } catch {
+    return null
+  }
   const customerEmail =
     session.customer_details?.email ?? session.customer_email ?? ""
 
@@ -60,27 +54,17 @@ export async function getPublicBookingReceipt(
     session.currency !== "jpy" ||
     metadata.booking_reference !== bookingReference ||
     metadata.booking_event_id !== calendarBooking.eventId ||
-    !durationMinutes ||
-    durationMinutes % 30 !== 0 ||
-    !rateJpyPer30Minutes ||
-    !serviceTotalJpy ||
-    serviceTotalJpy !== rateJpyPer30Minutes * (durationMinutes / 30) ||
-    !depositAmountJpy ||
-    session.amount_total !== depositAmountJpy ||
     !customerEmail
   ) {
     return null
   }
 
   return {
-    balanceDueJpy: serviceTotalJpy - depositAmountJpy,
+    cancellationPolicy: cancellationPolicyFromMetadata(metadata),
+    ...pricing,
     bookingReference,
     customerEmail: maskEmail(customerEmail),
-    depositAmountJpy,
-    durationHours: durationMinutes / 60,
-    rateJpyPer30Minutes,
     requestTitle: metadata.booking_title ?? "",
-    serviceTotalJpy,
     slotEnd: calendarBooking.slotEnd,
     slotStart: calendarBooking.slotStart,
     transportBufferMinutes: bookingTransportBufferMinutes(),

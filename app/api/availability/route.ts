@@ -27,10 +27,6 @@ type AvailabilityPayload = {
   transportBufferMinutes: number
 }
 
-let availabilityCache:
-  | { expiresAt: number; payload: AvailabilityPayload }
-  | undefined
-
 export async function GET(request: Request) {
   const rateLimit = await checkRateLimit(request.headers, {
     bucket: "availability",
@@ -49,15 +45,6 @@ export async function GET(request: Request) {
   }
 
   try {
-    if (availabilityCache && availabilityCache.expiresAt > Date.now()) {
-      return Response.json(availabilityCache.payload, {
-        headers: {
-          "cache-control":
-            "public, max-age=0, s-maxage=30, stale-while-revalidate=120",
-        },
-      })
-    }
-
     const dayHours = bookingDayHours()
     const fullDaySegments = Math.max(
       (timeToMinutes(dayHours.end) - timeToMinutes(dayHours.start)) /
@@ -79,22 +66,18 @@ export async function GET(request: Request) {
         }
       }
     )
-    const payload = {
+    const payload: AvailabilityPayload = {
       dayHours,
       days,
       pricing: getBookingPricing(),
       transportBufferMinutes: bookingTransportBufferMinutes(),
-    }
-    availabilityCache = {
-      expiresAt: Date.now() + 30_000,
-      payload,
     }
     return Response.json(
       payload,
       {
         headers: {
           "cache-control":
-            "public, max-age=0, s-maxage=30, stale-while-revalidate=120",
+            "private, no-store, max-age=0",
         },
       }
     )

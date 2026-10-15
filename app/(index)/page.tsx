@@ -1,3 +1,5 @@
+import { CustomRequestCard } from "@/components/custom-request-card"
+import { EXPERIENCE_PLANS, TRANSPORT_FEE_JPY, experiencePrice } from "@/lib/experience-plans"
 import Link from "next/link"
 import {
   ArrowRight,
@@ -33,8 +35,8 @@ const experiences = [
 const steps = [
   {
     number: "01",
-    title: "Pick a time",
-    copy: "Choose your own start and end time. I prefer four hours or longer, but shorter sessions open when the day is nearly full.",
+    title: "Choose your experience",
+    copy: "Pick a date, choose Short Experience, Half Day, or Full Day, and select an available start time.",
   },
   {
     number: "02",
@@ -44,7 +46,7 @@ const steps = [
   {
     number: "03",
     title: "Secure the booking",
-    copy: "Pay the small deposit through Stripe. Your time is confirmed only after payment succeeds.",
+    copy: "Pay in full through Stripe. Your time is confirmed only after payment succeeds.",
   },
 ]
 
@@ -55,7 +57,7 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(210,69,44,0.16),transparent_26%),radial-gradient(circle_at_20%_80%,rgba(32,91,77,0.10),transparent_24%)]" />
         <div className="page-shell relative grid min-h-[calc(100svh-76px)] items-center gap-12 py-16 lg:grid-cols-[1.15fr_0.85fr] lg:py-24">
           <div className="max-w-3xl">
-            <p className="eyebrow">A Japanese guy for the role you need</p>
+            <p className="eyebrow">A private Tokyo experience, shaped around you</p>
             <h1 className="mt-6 text-balance font-display text-[clamp(4rem,10vw,8.8rem)] leading-[0.82] tracking-[-0.065em]">
               Tokyo,
               <br />
@@ -82,24 +84,6 @@ export default function HomePage() {
                 See available times
                 <ArrowRight />
               </Link>
-              <Link
-                href="/about"
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "lg" }),
-                  "h-12 rounded-full border-ink/20 bg-transparent px-6 hover:bg-white/50 dark:hover:bg-ink/10"
-                )}
-              >
-                How this works
-              </Link>
-              <Link
-                href="/packages"
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "lg" }),
-                  "h-12 rounded-full border-ink/20 bg-transparent px-6 hover:bg-white/50 dark:hover:bg-ink/10"
-                )}
-              >
-                Package plans
-              </Link>
             </div>
           </div>
 
@@ -108,15 +92,15 @@ export default function HomePage() {
             <div className="relative overflow-hidden rounded-[2rem] bg-ink p-7 text-paper shadow-2xl shadow-ink/15 sm:p-9">
               <div className="flex items-center justify-between border-b border-paper/15 pb-6">
                 <span className="text-xs font-semibold uppercase tracking-[0.2em] text-paper/60">
-                  Flexible booking
+                  Private experiences
                 </span>
                 <span className="flex size-10 items-center justify-center rounded-full bg-vermilion">
                   <CalendarCheck className="size-5" />
                 </span>
               </div>
-              <p className="mt-8 font-display text-5xl leading-none">4+ hours</p>
+              <p className="mt-8 font-display text-5xl leading-none">Short / Half / Full</p>
               <p className="mt-3 text-sm leading-6 text-paper/65">
-                Choose your own start and end time when available.
+                Three ways to spend time in Tokyo. From ¥26,000 with social media participation, including transportation.
               </p>
 
               <div className="mt-10 grid grid-cols-7 gap-2" aria-hidden="true">
@@ -136,7 +120,7 @@ export default function HomePage() {
               </div>
               <div className="mt-8 flex items-center gap-2 text-sm text-paper/60">
                 <ShieldCheck className="size-4 text-jade-light" />
-                Confirmed only after deposit payment
+                Confirmed after deposit payment
               </div>
             </div>
           </div>
@@ -148,7 +132,7 @@ export default function HomePage() {
           <div>
             <p className="eyebrow">What this is</p>
             <h2 className="mt-4 max-w-sm font-display text-5xl leading-[0.95] tracking-tight sm:text-6xl">
-              A person for the plan—not a package tour.
+              Your interests. Your pace. Your Tokyo.
             </h2>
           </div>
           <div className="grid gap-px overflow-hidden rounded-3xl border border-ink/10 bg-ink/10 md:grid-cols-3">
@@ -161,6 +145,28 @@ export default function HomePage() {
             ))}
           </div>
         </div>
+      </section>
+
+      <section className="page-shell pb-20 sm:pb-28" id="experiences">
+        <p className="eyebrow">Choose your experience</p>
+        <h2 className="mt-4 font-display text-5xl tracking-tight sm:text-6xl">Make the day yours.</h2>
+        <p className="mt-5 max-w-2xl text-base leading-7 text-ink/65">Share your interests before we meet, and we’ll shape the experience together. Choose 4 hours, 8 hours, or 14 hours. You’re welcome to finish earlier to suit your schedule; the fixed plan price remains the same, with no refund for unused time.</p>
+        <div className="mt-9 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {EXPERIENCE_PLANS.map((plan) => (
+            <article key={plan.hours} className={cn("flex flex-col rounded-3xl border p-7", plan.hours === 8 ? "border-jade bg-jade text-paper" : "border-ink/15 bg-card")}>
+              <p className="text-xs uppercase tracking-widest opacity-60">{plan.hours === 8 ? "Room to explore" : plan.durationLabel}</p>
+              <h3 className="mt-5 font-display text-3xl">{plan.name}</h3>
+              <p className="mt-3 text-sm leading-6 opacity-70">{plan.description}</p>
+              <p className="mt-8 text-4xl font-semibold">¥{experiencePrice(plan.hours * 60).serviceTotalJpy.toLocaleString("en-US")}</p>
+              <p className="mt-2 text-sm opacity-70">{plan.durationLabel} · transportation included</p>
+              <p className="mt-2 text-xs opacity-60">¥{Math.round(plan.priceJpy * 1.2).toLocaleString("en-US")} experience + ¥4,000 transportation</p>
+              <p className="mt-2 text-sm font-semibold">With social media participation: ¥{(plan.priceJpy + TRANSPORT_FEE_JPY).toLocaleString("en-US")} total</p>
+              <Link href="/booking" className="mt-7 flex items-center justify-between border-t border-current/20 pt-5 text-sm font-semibold">Check available dates <ArrowRight className="size-4" /></Link>
+            </article>
+          ))}
+          <CustomRequestCard />
+        </div>
+        <p className="mt-5 text-sm leading-6 text-ink/55">Displayed prices include the 20% non-participation surcharge. Agree to social media participation at booking to remove it. Prices cover 1–3 guests. For 4–6 guests, the experience fee doubles; transportation remains ¥4,000 per booking. Food, drinks, and activity costs are extra. Full payment reserves your experience.</p>
       </section>
 
       <section className="bg-jade text-paper">

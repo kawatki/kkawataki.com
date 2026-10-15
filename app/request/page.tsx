@@ -24,7 +24,7 @@ export default async function RequestPage({
             For the thing we already talked about.
           </h1>
           <p className="mt-6 max-w-xl text-base leading-7 text-ink/65">
-            This hidden page is for custom payments arranged directly with me.
+            This page is for custom payments arranged directly with me.
             It stays separate from the normal booking calendar.
           </p>
         </div>

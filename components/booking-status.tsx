@@ -20,6 +20,7 @@ import {
 import type { BookingReceipt as BookingReceiptData } from "@/lib/booking"
 
 type BookingStatus =
+  | "cancelled"
   | "confirmed"
   | "delayed"
   | "error"
@@ -56,6 +57,7 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
             setReceipt(result.receipt)
           }
           if (
+            result.status === "cancelled" ||
             result.status === "confirmed" ||
             result.status === "error" ||
             result.status === "incomplete" ||
@@ -83,6 +85,10 @@ export function BookingStatus({ sessionId }: { sessionId: string }) {
       if (timeout) clearTimeout(timeout)
     }
   }, [sessionId])
+
+  if (status === "cancelled") {
+    return <div className="text-center"><h1 className="font-display text-5xl">Booking cancelled.</h1><p className="mt-5 text-base">This booking is no longer scheduled. Check your refund status on the <a href="/cancel" className="underline">cancellation page</a>.</p></div>
+  }
 
   if (status === "confirmed") {
     return (

@@ -1,3 +1,6 @@
+import { EXPERIENCE_PACKAGES } from "@/lib/experience-packages"
+import Link from "next/link"
+import { cancellationPolicyText } from "@/lib/booking-policy"
 import type { BookingReceipt as BookingReceiptData } from "@/lib/booking"
 
 function yen(amount: number) {
@@ -67,34 +70,42 @@ export function BookingReceipt({ receipt }: { receipt: BookingReceiptData }) {
         </dl>
 
         <dl className="grid gap-3 border-t border-ink/10 pt-5 text-sm">
+          {receipt.pricingVersion && <>
+            <div className="flex items-center justify-between gap-4"><dt>{receipt.durationHours}-hour experience</dt><dd>{yen(receipt.planAmountJpy ?? 0)}</dd></div>
+            {!!receipt.packagesTotalJpy && <div className="flex items-center justify-between gap-4"><dt>Packages: {receipt.packageIds?.map(id => EXPERIENCE_PACKAGES.find(item => item.id === id)?.name ?? id).join(", ")}</dt><dd>{yen(receipt.packagesTotalJpy)}</dd></div>}
+            <div className="flex items-center justify-between gap-4"><dt>Transportation</dt><dd>{yen(receipt.transportFeeJpy ?? 0)}</dd></div>
+            {!!receipt.taxAmountJpy && <div className="flex items-center justify-between gap-4"><dt>Tax ({(receipt.taxRate ?? 0) * 100}%)</dt><dd>{yen(receipt.taxAmountJpy)}</dd></div>}
+          </>}
           <div className="flex items-center justify-between gap-4">
             <dt className="text-ink/55">
-              Service total · {yen(receipt.rateJpyPer30Minutes)} / 30 min
+              {receipt.pricingVersion ? "Booking total (including transportation)" : `Service total · ${yen(receipt.rateJpyPer30Minutes ?? 0)} / 30 min`}
             </dt>
             <dd className="font-semibold">{yen(receipt.serviceTotalJpy)}</dd>
           </div>
           <div className="flex items-center justify-between gap-4">
-            <dt className="text-ink/55">Deposit paid to Stripe</dt>
+            <dt className="text-ink/55">{receipt.balanceDueJpy === 0 ? "Paid in full via Stripe" : "Deposit paid via Stripe"}</dt>
             <dd className="font-semibold text-jade">
               {yen(receipt.depositAmountJpy)}
             </dd>
           </div>
+          {receipt.depositAmountJpy < receipt.serviceTotalJpy && receipt.balanceDueJpy > 0 ? (
           <div className="flex items-center justify-between gap-4 border-t border-ink/10 pt-3">
-            <dt className="font-semibold">Pay in person</dt>
+            <dt className="font-semibold">Remaining balance</dt>
             <dd className="font-semibold text-vermilion">
               {yen(receipt.balanceDueJpy)}
             </dd>
           </div>
+          ) : null}
         </dl>
 
         <div className="rounded-xl bg-cream/70 px-4 py-4 text-sm leading-6 text-ink/60">
           <p>
-            The deposit is non-refundable if you cancel or do not attend. If I
-            cancel, it will be refunded.
+            {cancellationPolicyText(receipt.cancellationPolicy)}
           </p>
+          <Link href="/cancel" className="mt-3 inline-block underline">Cancel this booking</Link>
+          {["private-experiences-v2", "private-experiences-v3", "private-experiences-v4", "private-experiences-v5"].includes(receipt.pricingVersion ?? "") && <p className="mt-2">You may finish earlier to suit your schedule. Your plan has a fixed price; unused time is not refunded.</p>}
           <p className="mt-2">
-            You also cover transportation costs and any food or drinks during
-            our time together. A {receipt.transportBufferMinutes / 60}-hour
+            {receipt.pricingVersion ? "Transportation is included in your booking total. Food, drinks, and activity costs are extra." : "You also cover transportation costs (approximately 3,000–4,000 JPY) and any food or drinks during our time together."} A {receipt.transportBufferMinutes / 60}-hour
             transportation buffer is reserved after your booking.
           </p>
         </div>

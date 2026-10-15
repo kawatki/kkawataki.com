@@ -1,3 +1,6 @@
+import { verifyShortNoticeApproval } from "@/lib/short-notice-approval"
+import { validatePackageSchedule } from "@/lib/experience-packages"
+import { CANCELLATION_POLICY, cancellationPolicyText } from "@/lib/booking-policy"
 import {
   CHECKOUT_HOLD_MINUTES,
   createBookingReference,
@@ -89,6 +92,8 @@ export async function POST(request: Request) {
       booking.startTime,
       booking.endTime
     )
+    const shortNotice = new Date(slot.start).getTime() - Date.now() < 7 * 86400000
+    if (shortNotice && !verifyShortNoticeApproval(input.approval, booking)) return Response.json({ error: "Bookings within 7 days require Taki’s approval. Contact Taki for a private approval link before paying." }, { status: 400 })
     const dayCandidates = generateCandidateSlots().filter(
       (candidate) => candidate.date === booking.date
     )
@@ -109,7 +114,8 @@ export async function POST(request: Request) {
         { status: 409 }
       )
     }
-    const pricing = getBookingPricing(slot.durationMinutes)
+    validatePackageSchedule(booking.packageIds ?? [], slot.durationMinutes / 60, booking.startTime, booking.endTime)
+    const pricing = getBookingPricing(slot.durationMinutes, booking)
     const bookingReference = createBookingReference()
     slotId = slot.id
     holdToken = crypto.randomUUID()
@@ -135,6 +141,7 @@ export async function POST(request: Request) {
     const origin = new URL(request.url).origin
     const cancelUrl = new URL("/booking/", origin)
     cancelUrl.searchParams.set("payment", "cancelled")
+    if (shortNotice && typeof input.approval === "string") cancelUrl.searchParams.set("approval", input.approval)
     cancelUrl.searchParams.set("booking_event_id", slot.id)
     cancelUrl.searchParams.set("cancel_token", cancelToken)
 
@@ -143,7 +150,8 @@ export async function POST(request: Request) {
       customer_email: booking.email,
       custom_text: {
         submit: {
-          message: `Complete payment within ${CHECKOUT_HOLD_MINUTES} minutes to keep this time. Service rate: ¥${pricing.rateJpyPer30Minutes.toLocaleString("en-US")} per 30 minutes (¥${pricing.serviceTotalJpy.toLocaleString("en-US")} for ${pricing.durationHours} hours). The 25% deposit of ¥${pricing.depositAmountJpy.toLocaleString("en-US")} is non-refundable if you cancel or do not attend, and is deducted from the final amount. You also cover transportation and any food or drinks during our time together.`,
+          message: `Total ¥${pricing.serviceTotalJpy.toLocaleString("en-US")} including tax. Pay ${pricing.depositPercent}% (¥${pricing.depositAmountJpy.toLocaleString("en-US")}) now.${pricing.depositPercent < 100 && pricing.balanceDueJpy > 0 ? ` ¥${pricing.balanceDueJpy.toLocaleString("en-US")} in person.` : ""} ${cancellationPolicyText()}`,
+
         },
       },
       expires_at: stripeExpiresAt,
@@ -165,6 +173,10 @@ export async function POST(request: Request) {
         booking_event_id: slot.id,
         booking_location: booking.location,
         booking_notes: booking.notes,
+        ...Object.fromEntries((booking.customIdeas ?? []).flatMap((idea, index) => [[`custom_idea_${index}_title`, idea.title], [`custom_idea_${index}_description`, idea.description], ...Array.from({ length: 3 }, (_, chunk) => [`custom_idea_${index}_html_${chunk}`, (idea.descriptionHtml ?? "").slice(chunk * 500, (chunk + 1) * 500)])])),
+        people_count: String(booking.peopleCount),
+        face_recording_consent: String(booking.faceRecordingConsent),
+        recording_pricing_version: "social-media-v2",
         booking_title: booking.title,
         customer_name: booking.name,
         alternate_contact: booking.alternateContact,
@@ -174,7 +186,15 @@ export async function POST(request: Request) {
         deposit_percent: String(pricing.depositPercent),
         deposit_terms_accepted: "true",
         deposit_terms_version: DEPOSIT_TERMS_VERSION,
-        rate_jpy_per_30_minutes: String(pricing.rateJpyPer30Minutes),
+        cancellation_policy_version: CANCELLATION_POLICY.version,
+        short_notice_approved: shortNotice ? "true" : "false",
+        pricing_version: pricing.pricingVersion,
+        tax_rate: String(pricing.taxRate),
+        package_ids: JSON.stringify(pricing.packageIds),
+        packages_total_jpy: String(pricing.packagesTotalJpy),
+        transportation_terms_accepted: String(booking.transportationTermsAccepted),
+        plan_amount_jpy: String(pricing.planAmountJpy),
+        transport_fee_jpy: String(pricing.transportFeeJpy),
         service_total_jpy: String(pricing.serviceTotalJpy),
         social_handle: booking.socialHandle,
         social_platform: booking.socialPlatform,

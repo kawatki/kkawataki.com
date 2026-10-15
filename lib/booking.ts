@@ -1,22 +1,21 @@
+import { customIdeaLimit } from "@/lib/experience-packages"
+import { cleanDescription, descriptionText } from "@/lib/rich-description"
+import { experiencePrice, planForDuration } from "@/lib/experience-plans"
+import { parseBookingOptions, type BookingOptions } from "@/lib/booking-options"
+
 export const BOOKING_TIME_ZONE = "Asia/Tokyo"
 export const BOOKING_INCREMENT_MINUTES = 30
 export const PREFERRED_BOOKING_MINUTES = 4 * 60
-export const MINIMUM_BOOKING_MINUTES = 60
-export const FALLBACK_BOOKING_MINUTES = [
-  PREFERRED_BOOKING_MINUTES,
-  3 * 60,
-  2 * 60,
-  MINIMUM_BOOKING_MINUTES,
-] as const
-export const DEPOSIT_PERCENT = 25
-export const DEPOSIT_TERMS_VERSION = "2026-07-30-v2"
+export const MINIMUM_BOOKING_MINUTES = 4 * 60
+export const FALLBACK_BOOKING_MINUTES = [PREFERRED_BOOKING_MINUTES] as const
+export { DEPOSIT_PERCENT } from "@/lib/booking-policy"
+export const DEPOSIT_TERMS_VERSION = "2026-10-14-v6"
 export const CHECKOUT_HOLD_MINUTES = 10
 export const STRIPE_CHECKOUT_EXPIRY_MINUTES = 30
 
 const DEFAULT_DAY_START = "09:00"
 const DEFAULT_DAY_END = "23:00"
 const DEFAULT_TRANSPORT_BUFFER_MINUTES = 60
-const DEFAULT_RATE_JPY_PER_30_MINUTES = 1_000
 const DEFAULT_BOOKING_MONTHS_AHEAD = 6
 const DEFAULT_MINIMUM_NOTICE_HOURS = 6
 
@@ -38,7 +37,9 @@ export type MessagingPlatform =
   | "whatsapp"
   | "x"
 
-export type BookingRequest = {
+export type BookingRequest = BookingOptions & {
+  customIdeas?: { title: string; description: string; descriptionHtml?: string }[]
+  transportationTermsAccepted: boolean
   alternateContact: string
   date: string
   depositTermsAccepted: boolean
@@ -62,17 +63,34 @@ export type BookingPricing = {
   minimumDurationOptions: number[]
   minimumDurationMinutes: number
   preferredDurationMinutes: number
-  rateJpyPer30Minutes: number
+  rateJpyPer30Minutes?: number
+  pricingVersion?: string
+  planAmountJpy?: number
+  subtotalJpy?: number
+  taxRate?: number
+  taxAmountJpy?: number
+  transportFeeJpy?: number
+  packageIds?: string[]
+  packagesTotalJpy?: number
   serviceTotalJpy: number
 }
 
 export type BookingReceipt = {
+  cancellationPolicy: import("@/lib/booking-policy").CancellationPolicy
   balanceDueJpy: number
   bookingReference: string
   customerEmail: string
   depositAmountJpy: number
   durationHours: number
-  rateJpyPer30Minutes: number
+  rateJpyPer30Minutes?: number
+  pricingVersion?: string
+  planAmountJpy?: number
+  subtotalJpy?: number
+  taxRate?: number
+  taxAmountJpy?: number
+  transportFeeJpy?: number
+  packageIds?: string[]
+  packagesTotalJpy?: number
   requestTitle: string
   serviceTotalJpy: number
   slotEnd: string
@@ -93,38 +111,15 @@ export function createBookingReference() {
 }
 
 export function getBookingPricing(
-  durationMinutes = PREFERRED_BOOKING_MINUTES
-): BookingPricing {
-  if (
-    !Number.isInteger(durationMinutes) ||
-    durationMinutes < MINIMUM_BOOKING_MINUTES ||
-    durationMinutes % BOOKING_INCREMENT_MINUTES !== 0
-  ) {
-    throw new Error("Choose a booking of at least one hour.")
-  }
-
-  const configuredRate = Number(process.env.BOOKING_RATE_JPY_PER_30_MINUTES)
-  const rateJpyPer30Minutes =
-    Number.isInteger(configuredRate) && configuredRate > 0
-      ? configuredRate
-      : DEFAULT_RATE_JPY_PER_30_MINUTES
-  const serviceTotalJpy =
-    rateJpyPer30Minutes * (durationMinutes / BOOKING_INCREMENT_MINUTES)
-  const depositAmountJpy = Math.ceil(
-    (serviceTotalJpy * DEPOSIT_PERCENT) / 100
-  )
-
+  durationMinutes = PREFERRED_BOOKING_MINUTES,
+  options?: BookingOptions
+) {
   return {
-    balanceDueJpy: serviceTotalJpy - depositAmountJpy,
+    ...experiencePrice(durationMinutes, options),
     bookingIncrementMinutes: BOOKING_INCREMENT_MINUTES,
-    depositAmountJpy,
-    depositPercent: DEPOSIT_PERCENT,
-    durationHours: durationMinutes / 60,
     minimumDurationOptions: [...FALLBACK_BOOKING_MINUTES],
     minimumDurationMinutes: PREFERRED_BOOKING_MINUTES,
     preferredDurationMinutes: PREFERRED_BOOKING_MINUTES,
-    rateJpyPer30Minutes,
-    serviceTotalJpy,
   }
 }
 
@@ -268,10 +263,9 @@ export function makeSlot(
     !Number.isFinite(endMinutes) ||
     startMinutes < timeToMinutes(dayStart) ||
     endMinutes > timeToMinutes(dayEnd) ||
-    durationMinutes < MINIMUM_BOOKING_MINUTES ||
-    durationMinutes % BOOKING_INCREMENT_MINUTES !== 0
+    !planForDuration(durationMinutes)
   ) {
-    throw new Error("Choose a valid time range of at least one hour.")
+    throw new Error("Choose a Short Experience (4h), Half Day (8h), or Full Day (14h) within opening hours.")
   }
 
   return createSlot(date, startTime, endTime, durationMinutes)
@@ -366,6 +360,23 @@ export function parseBookingRequest(value: unknown): BookingRequest {
   }
 
   const input = value as Record<string, unknown>
+  const options = parseBookingOptions(input)
+  const rawIdeas = input.customIdeas ?? (input.customIdea !== undefined ? [input.customIdea] : [])
+  if (!Array.isArray(rawIdeas) || rawIdeas.length > 3) throw new Error("Add up to 3 custom ideas.")
+  const customIdeas = rawIdeas.map((value: unknown) => {
+    if (!value || typeof value !== "object") throw new Error("Enter your custom idea.")
+    const idea = value as Record<string, unknown>
+    if (typeof idea.title !== "string" || typeof idea.description !== "string" || idea.title.trim().length < 3 || idea.title.trim().length > 100 || idea.description.trim().length < 3 || idea.description.trim().length > 450) throw new Error("Custom idea needs a title (3–100 characters) and description (3–450 characters).")
+    if (idea.descriptionHtml !== undefined) {
+      if (typeof idea.descriptionHtml !== "string" || idea.descriptionHtml.length > 1500) throw new Error("Custom idea formatting is too long.")
+      const html = cleanDescription(idea.descriptionHtml)
+      const text = descriptionText(html)
+      if (text.length < 3 || text.length > 450) throw new Error("Custom idea description must be 3–450 characters.")
+      return { title: idea.title.trim(), description: text, descriptionHtml: html }
+    }
+    return { title: idea.title.trim(), description: idea.description.trim() }
+  })
+  if (input.transportationTermsAccepted !== true) throw new Error("Please acknowledge the transportation terms.")
   const name = typeof input.name === "string" ? input.name.trim() : ""
   const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : ""
   const title = typeof input.title === "string" ? input.title.trim() : ""
@@ -462,10 +473,15 @@ export function parseBookingRequest(value: unknown): BookingRequest {
     throw new Error("Choose an available start and end time.")
   }
   if (!depositTermsAccepted) {
-    throw new Error("Please agree to the non-refundable deposit policy.")
+    throw new Error("Please agree to the payment and cancellation policy.")
   }
 
+  const ideaLimit = customIdeaLimit((timeToMinutes(endTime) - timeToMinutes(startTime)) / 60)
+  if (customIdeas.length > ideaLimit) throw new Error(`Your selected duration allows up to ${ideaLimit} custom ideas.`)
   return {
+    ...options,
+    ...(customIdeas.length ? { customIdeas } : {}),
+    transportationTermsAccepted: true,
     alternateContact,
     date,
     depositTermsAccepted,

@@ -1,3 +1,4 @@
+import { retryBookingCancellations } from "@/lib/booking-cancellation"
 import { deleteExpiredBookingHolds } from "@/lib/google-calendar"
 import { ConfigurationError, requiredEnv } from "@/lib/server-config"
 
@@ -13,7 +14,8 @@ export async function GET(request: Request) {
     }
 
     const result = await deleteExpiredBookingHolds()
-    return Response.json({ ok: true, ...result })
+    const cancellationsRetried = await retryBookingCancellations()
+    return Response.json({ ok: true, ...result, cancellationsRetried })
   } catch (error) {
     if (error instanceof ConfigurationError) {
       console.error(error.message)

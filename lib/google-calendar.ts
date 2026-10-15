@@ -1,3 +1,4 @@
+import { cleanDescription, escapeDescription } from "@/lib/rich-description"
 import "server-only"
 
 import type {
@@ -23,6 +24,7 @@ type GoogleEvent = {
   start?: { date?: string; dateTime?: string }
   status?: string
   summary?: string
+  transparency?: string
 }
 
 type GoogleEventList = {
@@ -213,7 +215,9 @@ function holdBody(
     description: [
       `Booking reference: ${bookingReference}`,
       "",
-      "This time is temporarily held while the customer completes payment.",
+      "NOT A CONFIRMED BOOKING. Payment must succeed within 10 minutes.",
+      `Hold expires: ${new Date(expiresAt * 1000).toISOString()} (UTC).`,
+      "The website releases this time automatically when the hold expires.",
     ].join("\n"),
     end: { dateTime: slot.end, timeZone: BOOKING_TIME_ZONE },
     location: request.location,
@@ -237,10 +241,39 @@ function holdBody(
     },
     id: slot.id,
     start: { dateTime: slot.start, timeZone: BOOKING_TIME_ZONE },
-    status: "confirmed",
-    summary: "Payment pending — Rental Japanese Guy",
-    transparency: "opaque",
+    status: "tentative",
+    summary: "10-minute payment hold — NOT CONFIRMED",
+    transparency: "transparent",
+    reminders: { useDefault: false },
     visibility: "private",
+  }
+}
+
+function isInactive(event: GoogleEvent, now = Math.floor(Date.now() / 1000)) {
+  const properties = bookingProperties(event)
+  // Personal plans block bookings even when Google marks them as Free.
+  // Only cancelled events and inactive website booking records are ignored.
+  return event.status === "cancelled" ||
+    ["expired", "conflict", "cancelled"].includes(properties.bookingState) ||
+    (properties.bookingState === "hold" && Number(properties.holdExpiresAt || 0) <= now)
+}
+
+// Use the observed version: never remove an event confirmed or reused since it was listed.
+async function retireHold(event: GoogleEvent) {
+  if (!event.id || !event.etag || bookingProperties(event).bookingState !== "hold") return false
+  try {
+    await googleRequest(calendarUrl(`/${encodeURIComponent(event.id)}`), {
+      method: "PATCH",
+      headers: { "if-match": event.etag },
+      body: JSON.stringify({
+        status: "cancelled", transparency: "transparent", reminders: { useDefault: false },
+        extendedProperties: { private: { ...bookingProperties(event), bookingState: "expired" } },
+      }),
+    })
+    return true
+  } catch (error) {
+    if (error instanceof GoogleCalendarError && [404, 410, 412].includes(error.status)) return false
+    throw error
   }
 }
 
@@ -272,20 +305,24 @@ export async function listAvailableSlots(candidates: BookingSlot[]) {
     pageToken = result?.nextPageToken
   } while (pageToken)
 
-  const now = Date.now()
-  const busy = events.flatMap((event) => {
+  const now = Math.floor(Date.now() / 1000)
+  // Reads also clean expired holds, so release does not depend on a scheduled job.
+  for (const event of events) {
     const properties = bookingProperties(event)
-    const isExpiredHold =
-      properties.bookingState === "hold" &&
-      Number(properties.holdExpiresAt || 0) <= Math.floor(now / 1_000)
-
-    if (
-      event.status === "cancelled" ||
-      isExpiredHold ||
-      properties.bookingState === "expired"
-    ) {
-      return []
+    if (event.status !== "cancelled" && properties.bookingState === "hold" && Number(properties.holdExpiresAt || 0) <= now) {
+      try {
+        const retired = await retireHold(event)
+        if (!retired && event.id) {
+          const latest = await getEvent(event.id)
+          if (latest) Object.assign(event, latest)
+        }
+      } catch (error) {
+        console.error("Expired hold cleanup deferred", event.id, error)
+      }
     }
+  }
+  const busy = events.flatMap((event) => {
+    if (isInactive(event, now)) return []
 
     const start = eventTime(event.start)
     const end = eventTime(event.end)
@@ -393,6 +430,8 @@ export async function acquireSlot(
   const properties = bookingProperties(existing)
   const expired =
     properties.bookingState === "expired" ||
+    properties.bookingState === "cancelled" ||
+    existing.status === "cancelled" ||
     (properties.bookingState === "hold" &&
       Number(properties.holdExpiresAt || 0) <= Math.floor(Date.now() / 1_000))
 
@@ -493,15 +532,7 @@ async function deleteHold(
     return false
   }
 
-  await googleRequest<null>(
-    calendarUrl(`/${encodeURIComponent(eventId)}`),
-    {
-      headers: { "if-match": event.etag },
-      method: "DELETE",
-    },
-    [404, 410]
-  )
-  return true
+  return retireHold(event)
 }
 
 export function deleteHoldByCancelToken(eventId: string, cancelToken: string) {
@@ -544,9 +575,8 @@ export async function deleteExpiredBookingHolds() {
   const realEvents = events.flatMap((event) => {
     const properties = bookingProperties(event)
     if (
-      event.status === "cancelled" ||
-      properties.bookingState === "hold" ||
-      properties.bookingState === "expired"
+      isInactive(event, now) ||
+      properties.bookingState === "hold"
     ) {
       return []
     }
@@ -573,17 +603,11 @@ export async function deleteExpiredBookingHolds() {
     return isExpired || overlapsRealEvent
   })
 
-  await Promise.all(
-    stale.map((event) =>
-      googleRequest<null>(
-        calendarUrl(`/${encodeURIComponent(event.id ?? "")}`),
-        { method: "DELETE" },
-        [404, 410]
-      )
-    )
-  )
-
-  return { deleted: stale.length }
+  let deleted = 0
+  for (const event of stale) {
+    if (await retireHold(event)) deleted += 1
+  }
+  return { deleted }
 }
 
 export async function confirmPaidBooking(input: {
@@ -596,9 +620,14 @@ export async function confirmPaidBooking(input: {
   eventId: string
   location: string
   name: string
+  customIdeas?: { title: string; description: string; descriptionHtml?: string }[]
   notes: string
   paidAt: number
-  rateJpyPer30Minutes: number
+  rateJpyPer30Minutes?: number
+  planAmountJpy?: number
+  packagesTotalJpy?: number
+  taxAmountJpy?: number
+  transportFeeJpy?: number
   sessionId: string
   serviceTotalJpy: number
   socialHandle: string
@@ -607,18 +636,21 @@ export async function confirmPaidBooking(input: {
 }) {
   const event = await getEvent(input.eventId)
   if (!event) {
-    throw new Error("The calendar hold no longer exists.")
+    return { conflict: true as const }
   }
 
   const properties = bookingProperties(event)
   if (properties.stripeSessionId !== input.sessionId) {
     return { conflict: true as const }
   }
-  if (properties.bookingState === "confirmed") {
+  if (properties.bookingState === "confirmed" || properties.bookingState === "cancelled") {
     return { confirmed: true as const }
   }
+  if (event.status === "cancelled" || !["hold", "paid"].includes(properties.bookingState)) {
+    return { conflict: true as const }
+  }
   const holdExpiresAt = Number(properties.holdExpiresAt || 0)
-  if (!holdExpiresAt || input.paidAt > holdExpiresAt) {
+  if (!holdExpiresAt || input.paidAt >= holdExpiresAt) {
     await patchPrivateProperties(
       input.eventId,
       { bookingState: "expired" },
@@ -645,7 +677,7 @@ export async function confirmPaidBooking(input: {
     })
   )
   const hasConflict = (overlapping?.items ?? []).some((candidate) => {
-    if (candidate.id === input.eventId || candidate.status === "cancelled") {
+    if (candidate.id === input.eventId || isInactive(candidate)) {
       return false
     }
     const candidateProperties = bookingProperties(candidate)
@@ -666,7 +698,7 @@ export async function confirmPaidBooking(input: {
       bookingState: "paid",
       stripeSessionId: input.sessionId,
     },
-    { stripeSessionId: input.sessionId }
+    { stripeSessionId: input.sessionId, bookingState: properties.bookingState }
   )
   if (!markedPaid) {
     return { conflict: true as const }
@@ -693,9 +725,15 @@ export async function confirmPaidBooking(input: {
       : [],
     [
       `YOUR BOOKING · ${input.durationHours} HOURS`,
-      `${yen(input.rateJpyPer30Minutes)} × ${halfHours} half-hours: ${yen(input.serviceTotalJpy)}`,
-      `${input.depositPercent}% deposit paid: − ${yen(input.depositAmountJpy)}`,
-      `Pay in person: ${yen(input.balanceDueJpy)}`,
+      ...(input.planAmountJpy !== undefined ? [
+        `Private experience: ${yen(input.planAmountJpy)}`,
+        ...(input.packagesTotalJpy ? [`Packages: ${yen(input.packagesTotalJpy)}`] : []),
+        `Transportation: ${yen(input.transportFeeJpy ?? 0)}`,
+        ...(input.taxAmountJpy ? [`Tax: ${yen(input.taxAmountJpy)}`] : []),
+        `Booking total: ${yen(input.serviceTotalJpy)}`,
+      ] : [`${yen(input.rateJpyPer30Minutes ?? 0)} × ${halfHours} half-hours: ${yen(input.serviceTotalJpy)}`]),
+      `${input.depositPercent}% payment received: − ${yen(input.depositAmountJpy)}`,
+      ...(input.depositPercent < 100 && input.balanceDueJpy > 0 ? [`Pay in person: ${yen(input.balanceDueJpy)}`] : []),
     ],
     [`Customer: ${input.name}`, `Email: ${input.email}`, ...contactLines],
     [
@@ -708,6 +746,13 @@ export async function confirmPaidBooking(input: {
     .filter((section) => section.length > 0)
     .map((section) => section.join("\n"))
     .join("\n\n")
+  const formattedDescription = escapeDescription(description).replace(/\n/g, "<br>") + (input.customIdeas ?? []).map((idea, index) => `<br><br><strong>Custom idea ${index + 1}: ${escapeDescription(idea.title)}</strong><br>${idea.descriptionHtml ? cleanDescription(idea.descriptionHtml) : escapeDescription(idea.description).replace(/\n/g, "<br>")}<br><em>Requested idea, not a confirmed reservation. Agree preparation fees and advance purchases before proceeding. Explain provider change/cancellation conditions before confirmation.</em>`).join("")
+
+  const paidEvent = await getEvent(input.eventId)
+  if (!paidEvent?.etag || bookingProperties(paidEvent).stripeSessionId !== input.sessionId ||
+      bookingProperties(paidEvent).bookingState !== "paid") {
+    return { conflict: true as const }
+  }
 
   await googleRequest<GoogleEvent>(
     calendarUrl(`/${encodeURIComponent(input.eventId)}`, {
@@ -716,7 +761,7 @@ export async function confirmPaidBooking(input: {
     {
       body: JSON.stringify({
         ...(inviteCustomer ? { attendees: [{ email: input.email }] } : {}),
-        description,
+        description: formattedDescription,
         ...(input.location ? { location: input.location } : {}),
         extendedProperties: {
           private: {
@@ -738,6 +783,7 @@ export async function confirmPaidBooking(input: {
         transparency: "opaque",
         visibility: "private",
       }),
+      headers: { "if-match": paidEvent.etag },
       method: "PATCH",
     }
   )
@@ -752,4 +798,25 @@ export async function getBookingState(eventId: string, stripeSessionId: string) 
     return "not_found"
   }
   return properties.bookingState ?? "hold"
+}
+
+export async function releaseCancelledBooking(eventId: string, sessionId: string) {
+  const event = await getEvent(eventId)
+  // A deleted/reused event no longer occupies time for this particular booking.
+  if (!event || event.status === "cancelled") return
+  const properties = bookingProperties(event)
+  if (properties.stripeSessionId !== sessionId || properties.bookingState === "cancelled") return
+  if (!event.etag || properties.bookingState !== "confirmed") {
+    throw new Error("Calendar booking changed during cancellation.")
+  }
+  await googleRequest(calendarUrl(`/${encodeURIComponent(eventId)}`, {
+    sendUpdates: process.env.GOOGLE_INVITE_CUSTOMERS === "true" ? "all" : "none",
+  }), {
+    method: "PATCH",
+    headers: { "if-match": event.etag },
+    body: JSON.stringify({
+      status: "cancelled",
+      extendedProperties: { private: { ...properties, bookingState: "cancelled" } },
+    }),
+  })
 }

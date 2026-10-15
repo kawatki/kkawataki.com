@@ -1,6 +1,9 @@
+import { descriptionForTask } from "@/lib/rich-description"
+import { EXPERIENCE_PACKAGES } from "@/lib/experience-packages"
 import type Stripe from "stripe"
 
-import { getBookingPricing } from "@/lib/booking"
+import { bookingPricingFromMetadata } from "@/lib/booking-policy"
+import { bookingWasCancelled } from "@/lib/cancellation-store"
 import {
   confirmPaidBooking,
   deleteHoldByStripeSession,
@@ -47,20 +50,11 @@ async function fulfillCheckout(
     return
   }
 
-  const hasVariablePricing = Boolean(metadata.booking_duration_minutes)
-  const durationMinutes = Number(
-    metadata.booking_duration_minutes ?? 4 * 60
-  )
-  const pricing = getBookingPricing(durationMinutes)
-  if (
-    session.amount_total !== pricing.depositAmountJpy ||
-    session.currency !== "jpy" ||
-    (hasVariablePricing &&
-      (metadata.deposit_amount_jpy !== String(pricing.depositAmountJpy) ||
-        metadata.service_total_jpy !== String(pricing.serviceTotalJpy)))
-  ) {
-    throw new Error("Paid Checkout Session has invalid pricing metadata.")
+  if (["2026-10-14-v4", "2026-10-14-v5"].includes(metadata.cancellation_policy_version) && !metadata.booking_paid_at) {
+    await getStripe().checkout.sessions.update(session.id, { metadata: { booking_paid_at: String(paidAt) } })
   }
+  if (await bookingWasCancelled(session.id)) return
+  const pricing = bookingPricingFromMetadata(metadata, session.amount_total, session.currency)
 
   const email = session.customer_details?.email ?? session.customer_email
   const eventId = metadata.booking_event_id
@@ -84,9 +78,14 @@ async function fulfillCheckout(
     eventId,
     location: metadata.booking_location ?? "",
     name: metadata.customer_name,
-    notes: metadata.booking_notes ?? "",
+    customIdeas: [0, 1, 2].flatMap(index => metadata[`custom_idea_${index}_title`] ? [{ title: metadata[`custom_idea_${index}_title`], description: metadata[`custom_idea_${index}_description`] ?? "", descriptionHtml: [0, 1, 2].map(chunk => metadata[`custom_idea_${index}_html_${chunk}`] ?? "").join("") }] : []),
+    notes: [metadata.booking_notes ?? "", ...(metadata.custom_idea_title ? [`Custom idea (subject to confirmation): ${metadata.custom_idea_title}\n${metadata.custom_idea_description ?? ""}`] : []), ...(pricing.packageIds.length ? [`Packages: ${pricing.packageIds.map(id => EXPERIENCE_PACKAGES.find(item => item.id === id)?.name ?? id).join(", ")} (¥${pricing.packagesTotalJpy.toLocaleString("en-US")})`] : []), ...(metadata.transportation_terms_accepted === "true" ? ["Transportation: ¥4,000 included; exceptional long-distance extras require agreement before booking."] : []), ...(metadata.people_count ? [`Group size: ${metadata.people_count}`, `${["social-media-v1", "privacy-included-v1", "social-media-v2"].includes(metadata.recording_pricing_version) ? "Social media participation" : "Face recording consent"}: ${metadata.face_recording_consent === "true" ? "Yes" : "No"}`, ...(metadata.surroundings_recording_consent !== undefined ? [`Food and surroundings recording consent: ${metadata.surroundings_recording_consent === "true" ? "Yes" : "No"}`] : [])] : [])].filter(Boolean).join("\n"),
     paidAt,
     rateJpyPer30Minutes: pricing.rateJpyPer30Minutes,
+    planAmountJpy: pricing.planAmountJpy,
+    packagesTotalJpy: pricing.packagesTotalJpy,
+    transportFeeJpy: pricing.transportFeeJpy,
+    taxAmountJpy: pricing.taxAmountJpy,
     sessionId: session.id,
     serviceTotalJpy: pricing.serviceTotalJpy,
     socialHandle: metadata.social_handle ?? "",
@@ -232,7 +231,7 @@ async function fulfillCustomRequestCheckout(
       amountJpy,
       email,
       name: metadata.customer_name,
-      notes: metadata.request_notes ?? "",
+      notes: metadata.request_notes_html_0 ? descriptionForTask([0, 1, 2].map(chunk => metadata[`request_notes_html_${chunk}`] ?? "").join("")) : metadata.request_notes ?? "",
       requestTitle: metadata.request_title,
       socialHandle: metadata.social_handle ?? "",
       socialPlatform:
@@ -273,6 +272,29 @@ async function expireCheckoutHold(session: Stripe.Checkout.Session) {
   await deleteHoldByStripeSession(eventId, session.id)
 }
 
+// Failed events can arrive out of order. Check Stripe's current state first,
+// and expire the checkout before releasing its hold so a retry cannot pay it.
+async function releaseFailedPayment(intent: Stripe.PaymentIntent) {
+  const eventId = intent.metadata.booking_event_id
+  if (!eventId || !intent.metadata.booking_reference) return
+  const current = await getStripe().paymentIntents.retrieve(intent.id)
+  if (!["requires_payment_method", "canceled"].includes(current.status)) return
+  const sessions = await getStripe().checkout.sessions.list({ payment_intent: intent.id, limit: 10 })
+  for (const candidate of sessions.data) {
+    if (candidate.metadata?.booking_event_id !== eventId) continue
+    let session = await getStripe().checkout.sessions.retrieve(candidate.id)
+    if (session.payment_status !== "unpaid") continue
+    if (session.status === "open") {
+      // A concurrent successful payment makes expiration fail; retry the webhook
+      // instead of releasing a newly paid customer's time.
+      session = await getStripe().checkout.sessions.expire(session.id)
+    }
+    if (session.status === "expired" && session.payment_status === "unpaid") {
+      await deleteHoldByStripeSession(eventId, session.id)
+    }
+  }
+}
+
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature")
   if (!signature) {
@@ -298,6 +320,8 @@ export async function POST(request: Request) {
   try {
     if (event.type === "checkout.session.completed") {
       await fulfillCheckout(event.data.object, event.created)
+    } else if (event.type === "payment_intent.payment_failed" || event.type === "payment_intent.canceled") {
+      await releaseFailedPayment(event.data.object)
     } else if (event.type === "checkout.session.expired") {
       await expireCheckoutHold(event.data.object)
     }

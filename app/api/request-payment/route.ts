@@ -99,6 +99,7 @@ export async function POST(request: Request) {
         custom_request_terms_version: CUSTOM_REQUEST_TERMS_VERSION,
         customer_name: customRequest.name,
         request_notes: customRequest.notes,
+        ...Object.fromEntries([0, 1, 2].map(chunk => [`request_notes_html_${chunk}`, (customRequest.notesHtml ?? "").slice(chunk * 500, (chunk + 1) * 500)])),
         request_reference: requestReference,
         request_title: customRequest.requestTitle,
         ...contactMetadata,

@@ -1,3 +1,4 @@
+import { cleanDescription, descriptionText } from "@/lib/rich-description"
 export const CUSTOM_REQUEST_TERMS_VERSION = "2026-07-31-v1"
 export const CUSTOM_REQUEST_MIN_AMOUNT_JPY = 100
 export const CUSTOM_REQUEST_MAX_AMOUNT_JPY = 300_000
@@ -17,6 +18,7 @@ export type CustomRequestPayment = {
   amountJpy: number
   email: string
   name: string
+  notesHtml?: string
   notes: string
   requestTitle: string
   socialHandle: string
@@ -61,7 +63,13 @@ export function parseCustomRequestPayment(value: unknown): CustomRequestPayment 
     typeof input.email === "string" ? input.email.trim().toLowerCase() : ""
   const requestTitle =
     typeof input.requestTitle === "string" ? input.requestTitle.trim() : ""
-  const notes = typeof input.notes === "string" ? input.notes.trim() : ""
+  let notes = typeof input.notes === "string" ? input.notes.trim() : ""
+  let notesHtml: string | undefined
+  if (input.notesHtml !== undefined) {
+    if (typeof input.notesHtml !== "string" || input.notesHtml.length > 1500) throw new Error("Please shorten your notes formatting or links.")
+    notesHtml = cleanDescription(input.notesHtml)
+    notes = descriptionText(notesHtml)
+  }
   let socialPlatform: CustomRequestMessagingPlatform = "none"
   if (
     input.socialPlatform === "discord" ||
@@ -173,6 +181,7 @@ export function parseCustomRequestPayment(value: unknown): CustomRequestPayment 
     email,
     name,
     notes,
+    ...(notesHtml ? { notesHtml } : {}),
     requestTitle,
     socialHandle,
     socialPlatform,

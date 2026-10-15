@@ -3,7 +3,7 @@ import Script from "next/script";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
@@ -45,21 +45,19 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
+      <head>
+        {/* Keep this in the initial head: extension mutations before hydration
+            conflict with React. The site provides its own dark theme. */}
+        <meta name="darkreader-lock" content="true" />
+      </head>
       <body className="flex min-h-full flex-col">
         <ThemeProvider>
-          <TooltipProvider>
-            <SiteHeader />
-            <main className="flex-1">{children}</main>
-            <SiteFooter />
-            <Toaster
-              position="top-center"
-              offset={{ top: 88 }}
-              mobileOffset={{
-                top: "calc(env(safe-area-inset-top, 0px) + 5rem)",
-              }}
-              richColors
-            />
-          </TooltipProvider>
+            <TooltipProvider>
+              <SiteHeader />
+              <main className="flex-1">{children}</main>
+              <SiteFooter />
+              <Toaster />
+            </TooltipProvider>
         </ThemeProvider>
       </body>
       {googleAnalyticsId && (
