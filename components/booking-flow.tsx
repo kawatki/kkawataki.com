@@ -286,6 +286,7 @@ export function BookingFlow({
 }) {
   const [validationAttempted, setValidationAttempted] = useState(false)
   const [bookingReviewed, setBookingReviewed] = useState(false)
+  const [contactSummary, setContactSummary] = useState({ name: "", email: "", location: "" })
   const [currentStep, setCurrentStep] = useState(0)
   const [editingIdea, setEditingIdea] = useState<number | null>(null)
   const [customIdeaEnabled, setCustomIdeaEnabled] = useState(false)
@@ -484,6 +485,7 @@ export function BookingFlow({
 
   function requestCheckout(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (currentStep === 3) { continueStep(); return }
     if (!bookingReviewed || !customIdeaValid || !selectedStart || !selectedEnd || !transportationTermsAccepted || !videoReviewed || !packagesReviewed) return
     setCheckoutError("")
     setDepositTermsAccepted(false)
@@ -580,25 +582,20 @@ export function BookingFlow({
 
   const [approvalClock] = useState(() => Date.now())
   const needsShortNoticeApproval = !!selectedDate && !!selectedStart && new Date(`${selectedDate}T${selectedStart}:00+09:00`).getTime() - approvalClock < 7 * 86400000 && !approval
+  const scheduleComplete = !!activeDay && !loading && !!selectedHours && validGroupSize && !!selectedStart && !!selectedEnd && activeStartOptions.includes(selectedStart) && !needsShortNoticeApproval
   const completed = [
-    !!activeDay && !loading,
-    !!selectedHours && validGroupSize,
-    !!selectedStart && !!selectedEnd && activeStartOptions.includes(selectedStart) && !needsShortNoticeApproval,
+    scheduleComplete,
     packagesReviewed && customIdeaValid,
-    transportationTermsAccepted,
-    videoReviewed,
+    transportationTermsAccepted && videoReviewed,
     bookingReviewed,
     false,
   ]
-  const canContinue = currentStep === 3 ? customIdeaValid : currentStep === 5 || currentStep === 6 ? true : completed[currentStep]
-  const stepWarning = !canContinue ? [
-    "Choose an available date to continue.",
-    "Choose a duration and enter a group size from 1 to 6.",
-    needsShortNoticeApproval ? "Bookings within 7 days require Taki’s approval. Please use Contact Taki to request a private approval link." : "Choose an available start time to continue.",
-    customIdeas.length > ideaLimit ? `Your ${selectedHours}-hour plan allows ${ideaLimit} custom ideas. Remove an idea or choose a longer duration; your ideas have been kept.` : editingIdea !== null ? "Save or cancel your current edit before continuing." : customIdeaDraftValid ? "Press Add to save your custom idea before continuing." : "Complete the custom idea title and description, then press Add. Or uncheck Request your own experience to continue without it.",
-    "Please acknowledge the additional costs before continuing.",
-    "",
-  ][currentStep] : ""
+  const canContinue = currentStep === 0 ? scheduleComplete : currentStep === 1 ? customIdeaValid : currentStep === 2 ? transportationTermsAccepted : true
+  const stepWarning = canContinue ? "" : currentStep === 0
+    ? !activeDay ? "Choose an available date to continue." : !selectedHours || !validGroupSize ? "Choose a duration and enter a group size from 1 to 6." : needsShortNoticeApproval ? "Bookings within 7 days require Taki’s approval. Contact Taki for a private approval link." : "Choose an available start time to continue."
+    : currentStep === 1
+      ? customIdeas.length > ideaLimit ? `Your plan allows ${ideaLimit} ideas. Remove an idea or choose a longer duration.` : editingIdea !== null ? "Save or cancel your edit before continuing." : customIdeaDraftValid ? "Press Add to save your idea before continuing." : "Complete your idea and press Add, or choose Skip for now."
+      : "Please acknowledge the additional costs before continuing."
   const stepError = useRef<{ id: string; message: string; step: number } | null>(null)
   useEffect(() => {
     const error = stepError.current
@@ -610,10 +607,10 @@ export function BookingFlow({
   useEffect(() => () => {
     if (stepError.current) dismissError(stepError.current.id)
   }, [])
-  const showIdeaErrors = validationAttempted && currentStep === 3 && customIdeaEnabled && !customIdeaValid && editingIdea === null
+  const showIdeaErrors = validationAttempted && currentStep === 1 && customIdeaEnabled && !customIdeaValid && editingIdea === null
   function goToStep(step: number) {
     setValidationAttempted(false)
-    if (step < 6) setBookingReviewed(false)
+    if (step < 4) setBookingReviewed(false)
     setCurrentStep(step)
     window.requestAnimationFrame(() => {
       stepTopRef.current?.focus({ preventScroll: true })
@@ -632,9 +629,14 @@ export function BookingFlow({
       })
       return
     }
-    if (currentStep === 3) setPackagesReviewed(true)
-    if (currentStep === 5) setVideoReviewed(true)
-    if (currentStep === 6) setBookingReviewed(true)
+    if (currentStep === 1) setPackagesReviewed(true)
+    if (currentStep === 2) setVideoReviewed(true)
+    if (currentStep === 3) {
+      if (!formRef.current?.reportValidity()) return
+      const details = new FormData(formRef.current)
+      setContactSummary({ name: String(details.get("name") ?? ""), email: String(details.get("email") ?? ""), location: String(details.get("location") ?? "") })
+      setBookingReviewed(true)
+    }
     goToStep(currentStep + 1)
   }
 
@@ -814,14 +816,14 @@ export function BookingFlow({
             </p>
           </div>
         )}
-        {activeDay && !loading && <AvailabilityTimeline availableTimes={activeDay.availableTimes} start={dayHours.start} end={dayHours.end} selectedStart={selectedStart} selectedEnd={selectedEnd} />}
+
       </section>
-      <section hidden={currentStep !== 1} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
-        <StepLabel step={2}>Pick your time length</StepLabel>
+      <section hidden={currentStep !== 0} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
+        <p className="eyebrow">Choose your duration</p>
         <h2 className="mt-3 font-display text-3xl">How much of the day is yours?</h2>
         <p className="mt-3 text-sm text-ink/60">You pick:&nbsp;
         <span className="font-bold">
-          {activeDay ? displayDate(activeDay.date, { dateStyle: "full" }) : "Choose a date in Step 1 to unlock these plans."}
+          {activeDay ? displayDate(activeDay.date, { dateStyle: "full" }) : "Choose a date above to see available plans."}
         </span>
         
         </p>
@@ -830,7 +832,7 @@ export function BookingFlow({
         </label>
         <p className="mt-2 text-xs text-ink/55">1–3 guests: standard experience fee. 4–6 guests: double the experience fee. Add-on prices are per booking.</p>
         <div className="mt-3">
-          <BookingPriceNotice initiallyOpen={false} attention={currentStep === 1} />
+          <BookingPriceNotice initiallyOpen={false} attention={currentStep === 0} />
         </div>
                 <div className="mt-5 grid gap-3" role="group" aria-label="Experience options">
                   {EXPERIENCE_PLANS.map((plan) => {
@@ -844,9 +846,9 @@ export function BookingFlow({
                       >
                         <span className="flex items-center justify-between gap-3">
                           <span className="font-display text-2xl">{plan.durationLabel}</span>
-                          <span className="text-right"><span className="block text-xl font-semibold">{yen(total.subtotalJpy)}</span><span className="block text-xs font-normal text-ink/60">before tax</span></span>
+                          <span className="text-right"><span className="block text-xl font-semibold">{yen(total.serviceTotalJpy)}</span><span className="block text-xs font-normal text-ink/60">including tax & transportation</span></span>
                         </span>
-                        <span className="mt-2 block text-right text-sm text-ink/70">{yen(total.serviceTotalJpy)} including {total.taxRate * 100}% tax</span>
+                        
                         <span className="mt-2 block font-semibold">{plan.name}</span>
                         <span className="mt-1 block text-sm leading-6 text-ink/60">{plan.description}</span>
                         <span className="mt-3 block font-bold text-md">{available ? `${yen(total.planAmountJpy)} experience + ${yen(TRANSPORT_FEE_JPY)} transportation · before tax` : `${yen(total.planAmountJpy)} experience + ${yen(TRANSPORT_FEE_JPY)} transportation · before tax`}</span>
@@ -859,8 +861,8 @@ export function BookingFlow({
                 <p className="mt-3 text-sm leading-6 text-ink/60">The price is fixed for your chosen plan. Your plan reserves the full 4, 8, or 14 hours; you’re welcome to finish earlier if your schedule changes. Unused time does not reduce the price or qualify for a partial refund.</p>
 
       </section>
-      <section hidden={currentStep !== 2} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
-        <StepLabel step={3}>Pick your schedule</StepLabel>
+      <section hidden={currentStep !== 0} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
+        <p className="eyebrow">Choose your start time</p>
         <h2 className="mt-3 font-display text-3xl">When shall we begin?</h2>
         <p className="mt-3 rounded-xl border border-jade/30 bg-jade/10 p-4 text-sm">Booking within 7 days? Please contact Taki first for approval and a private payment link. After payment, short-notice bookings have a 1-hour correction window for a 90% deposit refund, only before the start and before arrangements begin. After that, no refund. <a href="https://www.instagram.com/kkawataki/" target="_blank" rel="noopener noreferrer" className="underline">Contact Taki</a></p>
         <p className="mt-3 text-sm text-ink/60">Your {selectedHours ?? "chosen"}-hour plan sets the end time automatically. You can finish earlier, at the same fixed price.</p>
@@ -889,8 +891,8 @@ export function BookingFlow({
                 )}
 
       </section>
-      <section hidden={currentStep !== 3} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
-        <StepLabel step={4}>Your ideas</StepLabel>
+      <section hidden={currentStep !== 1} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
+        <StepLabel step={2}>Your ideas</StepLabel>
         <h2 className="mt-3 font-display text-3xl">What would you like to do?</h2>
         <p className="mt-3 text-sm leading-6 text-ink/60">Use this space to brainstorm what you’d enjoy. Add up to {ideaLimit} {ideaLimit === 1 ? "idea" : "ideas"} for your {selectedHours}-hour experience, or skip this step. Ideas help us plan; they are not confirmed reservations. We can adjust plans together until a reservation, ticket, or special arrangement is confirmed.</p>
         <div className="mt-6 grid gap-3">
@@ -956,15 +958,15 @@ export function BookingFlow({
         </Card>
         <p className="mt-4 text-sm text-ink/60">{packageIds.length ? `${packageIds.length} selected · ${yen(selectedPricing?.packagesTotalJpy ?? 0)}` : customIdeaEnabled && customIdeas.length ? `${customIdeas.length} custom ideas added · any extra costs confirmed separately.` : "No ideas yet? That’s fine—we can plan together later."}</p>
       </section>
-      <section hidden={currentStep !== 4} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
-        <StepLabel step={5}>Additional costs</StepLabel>
+      <section hidden={currentStep !== 2} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
+        <StepLabel step={3}>Preferences & costs</StepLabel>
         <h2 className="mt-3 font-display text-3xl">Costs to keep in mind.</h2>
         <Card className="mt-6"><h3 className="font-semibold">Food &amp; drinks</h3><p className="mt-3 text-sm leading-6 text-ink/60">Paid separately. Food and drinks are not included in your booking total unless explicitly included in a selected package. Have a restaurant or meal in mind? Let Taki know in advance, or let him choose somewhere based on your tastes, dietary needs, and budget.</p></Card>
         <Card className="mt-4"><div className="flex justify-between font-semibold"><span>Transportation fee</span><span>{yen(TRANSPORT_FEE_JPY)}</span></div><p className="mt-3 text-sm leading-6 text-ink/60">A fixed fee of ¥4,000, included in your total. Longer trips, such as travel outside Tokyo, cost extra. Taki will confirm any additional fee with you in advance.</p></Card>
         <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-4 text-sm leading-6"><ChoiceCheckbox checked={transportationTermsAccepted} onCheckedChange={checked => setTransportationTermsAccepted(checked === true)} /><span>I understand that food and drink costs are paid separately unless included in my selected package, and that the {yen(TRANSPORT_FEE_JPY)} transportation fee is included in my booking total. Any exceptional long-distance travel costs require a separately agreed quote before booking. I understand that ideas are requests, not confirmed arrangements; extra preparation and purchases require a separate agreement, and confirmed arrangements may have change or cancellation costs.</span></label>
       </section>
-      <section hidden={currentStep !== 5} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
-        <StepLabel step={6}>Video participation</StepLabel>
+      <section hidden={currentStep !== 2} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
+        <p className="eyebrow">Video participation</p>
         <h2 className="mt-3 font-display text-3xl">Wanna be part of my contents?</h2>
         <p className="mt-3 text-sm leading-6 text-ink/60">Participation is optional. You can continue without agreeing. Each guest can choose whether to appear.</p>
         <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-5 text-sm leading-6"><ChoiceCheckbox checked={faceRecordingConsent} onCheckedChange={checked => { setFaceRecordingConsent(checked === true); setVideoReviewed(false) }} /><span>I agree to appear in your videos and social media content, which may include my face.<span className="mt-2 block text-ink/60">Selected by default. Uncheck if you do not want to appear. Unchecking adds 20% to the experience fee; transportation and packages are unchanged.</span></span></label>
@@ -979,12 +981,14 @@ export function BookingFlow({
         <Card className="mt-5"><div className="flex justify-between"><span>Without participation</span><strong>{selectedHours && validGroupSize ? yen(experiencePrice(selectedHours * 60, { peopleCount: groupSize, faceRecordingConsent: false, packageIds }).serviceTotalJpy) : "¥0"}</strong></div><div className="mt-3 flex justify-between"><span>With participation</span><strong>{selectedHours && validGroupSize ? yen(experiencePrice(selectedHours * 60, { peopleCount: groupSize, faceRecordingConsent: true, packageIds }).serviceTotalJpy) : "¥0"}</strong></div><p className="mt-3 text-xs text-ink/55">Totals include packages, transportation, and tax.</p></Card>
       </section>
 
-      <section hidden={currentStep !== 6} className="rounded-3xl border border-ink/10 bg-card p-6 text-ink sm:p-8">
-        <StepLabel step={7}>Review</StepLabel>
+      <section hidden={currentStep !== 4} className="rounded-3xl border border-ink/10 bg-card p-6 text-ink sm:p-8">
+        <StepLabel step={5}>Review & pay</StepLabel>
         <h2 className="mt-3 font-display text-4xl">Your experience, at a glance.</h2>
-        <p className="mt-3 text-sm leading-6 text-ink/60">Check your schedule, packages, custom ideas, and total before continuing to payment.</p>
+        <p className="mt-3 text-sm leading-6 text-ink/60">Check your schedule, contact details, ideas, and total. Your booking is confirmed after payment.</p>
         {selectedPricing && <div className="mt-6 rounded-2xl border border-ink/20 p-5 text-sm">
           <p className="font-semibold">{selectedDate} · {selectedHours} hours · {selectedStart}–{selectedEnd} JST</p>
+          <p className="mt-2 text-ink/65">{contactSummary.name} · {contactSummary.email}</p>
+          {contactSummary.location && <p className="mt-1 text-ink/65">Meeting point: {contactSummary.location}</p>}
           <dl className="mt-4 grid gap-3">
             <div className="flex justify-between"><dt>Experience · {groupSize} guests</dt><dd>{yen(selectedPricing.planAmountJpy)}</dd></div>
             {packageIds.map(id => { const item = EXPERIENCE_PACKAGES.find(item => item.id === id)!; return <div key={id} className="flex justify-between"><dt>{item.name}</dt><dd>{yen(item.priceJpy)}</dd></div> })}
@@ -998,34 +1002,29 @@ export function BookingFlow({
         </div>}
         <aside className="mt-5 rounded-2xl border border-ink/20 p-5 text-sm">
           <p className="font-semibold">Plans change. You can cancel online.</p>
-          <p className="mt-2 leading-6 text-ink/70">{cancellationPolicyText()}</p>
+          <p className="mt-2 leading-6 text-ink/70">Cancel online and see your refund before confirming. Within 7 days of payment: 90% back when your experience is at least 7 days away. After that window: 75% back with 30+ days’ notice, or 50% with 7–30 days’ notice. Short-notice exceptions apply.</p>
           <a href="/cancel" target="_blank" rel="noopener noreferrer" className="mt-3 inline-block underline">View cancellation details ↗</a>
         </aside>
         <div className="mt-5 flex flex-wrap gap-3">
-          <Button className={cn("cursor-pointer")} type="button" variant="ghost" onClick={() => goToStep(0)}>Edit date</Button>
-          <Button className={cn("cursor-pointer")} type="button" variant="ghost" onClick={() => goToStep(1)}>Edit duration</Button>
-          <Button className={cn("cursor-pointer")} type="button" variant="ghost" onClick={() => goToStep(2)}>Edit schedule</Button>
-          <Button className={cn("cursor-pointer")} type="button" variant="ghost" onClick={() => goToStep(3)}>Edit ideas</Button>
-          <Button className={cn("cursor-pointer")} type="button" variant="ghost" onClick={() => goToStep(5)}>Edit video choice</Button>
+          <Button type="button" variant="ghost" onClick={() => goToStep(0)}>Edit date & time</Button>
+          <Button type="button" variant="ghost" onClick={() => goToStep(1)}>Edit ideas</Button>
+          <Button type="button" variant="ghost" onClick={() => goToStep(2)}>Edit preferences & costs</Button>
+          <Button type="button" variant="ghost" onClick={() => goToStep(3)}>Edit your details</Button>
         </div>
       </section>
 
       <form
         ref={formRef}
         onSubmit={requestCheckout}
-        hidden={currentStep !== 7}
+        hidden={currentStep !== 3 && currentStep !== 4}
         className="rounded-3xl border border-ink/10 bg-card p-6 text-ink sm:p-8"
       >
-        <StepLabel step={8}>
-          Payment
+        <div hidden={currentStep !== 3}>
+        <StepLabel step={4}>
+          Your details
         </StepLabel>
-        <h2 className="mt-3 font-display text-4xl">Secure your time.</h2>
-        <p className="mt-3 text-sm leading-6 text-ink/60">
-          Your slot is confirmed after Stripe accepts your {pricing?.depositPercent ?? DEPOSIT_PERCENT}% payment.
-          Your total includes the experience, packages, transportation, and tax.
-        </p>
-
-        {selectedPricing && <p className="mt-5 text-lg font-semibold">Deposit due now: {yen(selectedPricing.depositAmountJpy)} <span className="block text-sm font-normal text-ink/60">Booking total: {yen(selectedPricing.serviceTotalJpy)}</span></p>}
+        <h2 className="mt-3 font-display text-4xl">How can I reach you?</h2>
+        <p className="mt-3 text-sm leading-6 text-ink/60">Add your contact details and meeting preferences. You’ll review everything before paying.</p>
         <div className="mt-7 grid gap-5">
           <label className="grid gap-2 text-sm font-semibold">
             Name (Nickname)
@@ -1216,6 +1215,7 @@ export function BookingFlow({
           </label>
         </div>
 
+        </div>
         {error && days.length > 0 && (
           <ErrorToast>
             {error}
@@ -1224,6 +1224,7 @@ export function BookingFlow({
 
         <button
           type="submit"
+          hidden={currentStep !== 4}
           disabled={!selectedPricing || !selectedStart || !selectedEnd || !transportationTermsAccepted || !packagesReviewed || !videoReviewed || submitting || loading}
           className="mt-7 flex h-13 w-full items-center justify-center gap-2 rounded-full bg-vermilion px-6 font-semibold text-white transition hover:bg-vermilion/90 disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -1235,14 +1236,14 @@ export function BookingFlow({
           ) : (
             <>
               {selectedPricing
-                ? `Pay ${yen(selectedPricing.depositAmountJpy)} deposit`
+                ? `Pay ${yen(selectedPricing.depositAmountJpy)} in full`
                 : "Choose your experience and start time"}
               <ArrowRight className="size-4" />
             </>
           )}
         </button>
 
-        <p className="mt-4 flex items-center justify-center gap-2 text-xs text-ink/45">
+        <p hidden={currentStep !== 4} className="mt-4 flex items-center justify-center gap-2 text-xs text-ink/45">
           <LockKeyhole className="size-3.5" />
           Card details are handled securely by Stripe
         </p>
@@ -1410,8 +1411,9 @@ export function BookingFlow({
         </AlertDialog.Root>
       </form>
       
-      <div className="flex items-center justify-between gap-4 pb-8">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-8">
         <Button type="button" variant="outline" size="lg" disabled={currentStep === 0 || submitting} onClick={() => goToStep(currentStep - 1)}>Back</Button>
+        {currentStep === 1 && <Button type="button" variant="ghost" onClick={() => { setCustomIdeaEnabled(false); setPackageIds([]); setEditingIdea(null); setPackagesReviewed(true); goToStep(2) }}>Skip for now</Button>}
         {currentStep < BOOKING_STEPS.length - 1 && <Button type="button" size="lg" disabled={loading || submitting} onClick={continueStep}>Continue to {BOOKING_STEPS[currentStep + 1]} <ArrowRight /></Button>}
       </div>
       {!confirmationOpen && (

@@ -4,7 +4,7 @@ import { Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-export const BOOKING_STEPS = ["Date", "Duration", "Schedule", "Ideas", "Additional costs", "Video", "Review", "Payment"]
+export const BOOKING_STEPS = ["Date & time", "Your experience", "Preferences & costs", "Your details", "Review & pay"]
 
 export function BookingStepper({ current, completed, onSelect }: {
   current: number
