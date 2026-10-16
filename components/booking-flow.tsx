@@ -937,7 +937,11 @@ export function BookingFlow({
                 setEditingIdea(null); setPackagesReviewed(false)
               }} />}
             </div>)}
-            <div role="status" className="flex items-center justify-between gap-4 rounded-xl border border-jade/30 bg-jade/10 px-4 py-3"><p className="text-base font-semibold text-ink">Your custom ideas</p><span className="rounded-full bg-jade px-3 py-1 text-base font-bold text-paper">{customIdeas.length} / {ideaLimit} added</span><span className="sr-only">{customIdeas.length >= ideaLimit ? "Maximum reached." : ""}</span></div>
+            <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-jade/30 bg-jade/10 px-3 py-2.5">
+              <p className="text-sm font-medium text-ink">Your custom ideas</p>
+              <span className="shrink-0 whitespace-nowrap rounded-md bg-jade px-2.5 py-1.5 text-md font-semibold tabular-nums leading-5 text-paper">{customIdeas.length}/{ideaLimit} added</span>
+              <span className="sr-only">{customIdeas.length >= ideaLimit ? "Maximum reached." : ""}</span>
+            </div>
             {customIdeas.length > ideaLimit && <p className="text-sm text-vermilion">Your current plan allows {ideaLimit} ideas. Remove an idea or choose a longer duration. Your ideas are kept until you decide.</p>}
             {customIdeas.length < ideaLimit && <>
 
