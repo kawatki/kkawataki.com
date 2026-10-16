@@ -14,10 +14,10 @@ export function BookingPriceNotice({ initiallyOpen = true, attention = false }: 
       <Tooltip>
         <TooltipTrigger render={<Button type="button" variant="ghost" className={`cursor-pointer justify-self-start font-bold text-md text-vermilion ${attention ? "booking-price-notice-nudge" : ""}`} onClick={() => setOpen(true)} />}>
           <Info className="size-4" aria-hidden="true" />
-          Why prices changed from ¥1000?
+          How pricing works
         </TooltipTrigger>
         <TooltipContent>
-          Click to read why.
+          See the rate and payment breakdown.
         </TooltipContent>
       </Tooltip>
       <Dialog.Portal>
@@ -27,17 +27,15 @@ export function BookingPriceNotice({ initiallyOpen = true, attention = false }: 
             <Dialog.Close render={<Button variant="ghost" size="icon" className="absolute right-3 top-3" />} aria-label="Close pricing note">
               <X className="size-5" />
             </Dialog.Close>
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">A personal note from Taki</p>
-            <Dialog.Title className="mt-4 pr-5 font-display text-3xl leading-tight">More attention. A sustainable pace.</Dialog.Title>
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Clear pricing</p>
+            <Dialog.Title className="mt-4 pr-5 font-display text-3xl leading-tight">¥1,000 per 30 minutes.</Dialog.Title>
             <Dialog.Description render={<div />} className="mt-5 text-sm leading-7 text-muted-foreground">
-                <p>If you remember my earlier price of ¥1,000 for 30 minutes, the new price may feel like a big jump.</p>
-                <p>You deserve to know why.</p>
+              <p>The base experience rate is ¥1,000 per 30 minutes before tax, for 1–3 guests with video participation.</p>
             </Dialog.Description>
             <div className="mt-3 space-y-3 text-sm leading-7 text-muted-foreground">
-              <p>As more people started finding me through Instagram, booking requests grew much faster than I expected. I’m incredibly grateful for that, but taking bookings almost every day became difficult to sustain without sacrificing the recovery and energy I need between experiences.</p>
-              <p>So I raised my prices for a simple reason: to take fewer bookings, recover properly between them, and make sure I can give each guest the energy, preparation, and attention they’re paying for.</p>
-              <p>I completely understand if the new price no longer fits your travel plans.</p>
-              <p>But if you do choose to spend part of your trip with me, I’ll do my best to make that time genuinely worth it.</p>
+              <p>Choose 4, 8, or 14 hours. Transportation is ¥4,000 per booking before tax. A 10% tax is added to the total.</p>
+              <p>For 4–6 guests, the experience fee doubles. Choosing not to appear in videos adds 20% to the experience fee.</p>
+              <p>Pay 50% online to reserve your time, then pay the remaining balance in person. You’ll see the full total and deposit before paying.</p>
             </div>
             <Dialog.Close render={<Button className="mt-6 w-full" />}>Explore dates and prices</Dialog.Close>
           </Dialog.Popup>

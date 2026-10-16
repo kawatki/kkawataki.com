@@ -46,7 +46,7 @@ const steps = [
   {
     number: "03",
     title: "Secure the booking",
-    copy: "Pay in full through Stripe. Your time is confirmed only after payment succeeds.",
+    copy: "Pay a 50% deposit through Stripe, with the remaining balance paid in person. Your time is confirmed only after payment succeeds.",
   },
 ]
 
@@ -166,7 +166,7 @@ export default function HomePage() {
           ))}
           <CustomRequestCard />
         </div>
-        <p className="mt-5 text-sm leading-6 text-ink/55">Displayed prices include the 20% non-participation surcharge. Agree to social media participation at booking to remove it. Prices cover 1–3 guests. For 4–6 guests, the experience fee doubles; transportation remains ¥4,000 per booking. Food, drinks, and activity costs are extra. Full payment reserves your experience.</p>
+        <p className="mt-5 text-sm leading-6 text-ink/55">Displayed prices include the 20% non-participation surcharge. Agree to social media participation at booking to remove it. Prices cover 1–3 guests. For 4–6 guests, the experience fee doubles; transportation remains ¥4,000 per booking. Food, drinks, and activity costs are extra. A 50% deposit reserves your experience; pay the remaining balance in person.</p>
       </section>
 
       <section className="bg-jade text-paper">

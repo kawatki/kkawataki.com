@@ -7,11 +7,11 @@ const { experiencePrice }=load('@/lib/experience-plans')
 const now=Date.UTC(2026,0,1), day=86400000
 const policy=cancellationPolicyFromMetadata({cancellation_policy_version:CANCELLATION_POLICY.version})
 const refund=(notice,elapsed,approved=false,started=false)=>cancellationRefund(20000,new Date(now+notice).toISOString(),policy,now,{paidAt:now-elapsed,shortNoticeApproved:approved,arrangementsStarted:started})
-test('new bookings collect 100 percent of the tax-inclusive total',()=>{
+test('new bookings collect 50 percent of the tax-inclusive total',()=>{
  const p=experiencePrice(240,{peopleCount:1,faceRecordingConsent:true})
- assert.equal(p.depositPercent,100)
- assert.equal(p.depositAmountJpy,p.serviceTotalJpy)
- assert.equal(p.balanceDueJpy,0)
+ assert.equal(p.depositPercent,50)
+ assert.equal(p.depositAmountJpy,p.serviceTotalJpy / 2)
+ assert.equal(p.balanceDueJpy,p.serviceTotalJpy / 2)
 })
 test('normal refund uses both payment age and start time boundaries',()=>{
  assert.equal(refund(7*day,7*day).percent,90)

@@ -1,6 +1,6 @@
 import { parsePackageIds } from "@/lib/experience-packages"
 // Independent settings. Checkout stores a snapshot so edits affect new bookings only.
-export const DEPOSIT_PERCENT = 100
+export const DEPOSIT_PERCENT = 50
 export const CANCELLATION_POLICY = {
   version: "2026-10-14-v5",
   tiers: [{ days: 90, percent: 90 }, { days: 30, percent: 75 }, { days: 14, percent: 50 }, { days: 7, percent: 25 }, { days: 1, percent: 5 }, { days: 0, percent: 0 }],

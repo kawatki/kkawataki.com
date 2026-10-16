@@ -3,12 +3,13 @@ import { bookingPriceMultiplier, type BookingOptions } from "@/lib/booking-optio
 import { DEPOSIT_PERCENT } from "@/lib/booking-policy"
 
 export const PRICING_VERSION = "private-experiences-v5"
+export const RATE_JPY_PER_30_MINUTES = 1_000
 export const TAX_RATE = 0.1
 export const TRANSPORT_FEE_JPY = 4_000
 export const EXPERIENCE_PLANS = [
-  { hours: 4, durationLabel: "4 hours", priceJpy: 16_000, name: "Short Experience", description: "Food, conversation, and neighborhood discoveries at your own pace." },
-  { hours: 8, durationLabel: "8 hours", priceJpy: 28_000, name: "Half Day", description: "Time to explore your interests, stop for a meal, and enjoy the city." },
-  { hours: 14, durationLabel: "14 hours", priceJpy: 42_000, name: "Full Day", description: "An unhurried day together, from morning into the evening." },
+  { hours: 4, durationLabel: "4 hours", priceJpy: 4 * 2 * RATE_JPY_PER_30_MINUTES, name: "Short Experience", description: "Food, conversation, and neighborhood discoveries at your own pace." },
+  { hours: 8, durationLabel: "8 hours", priceJpy: 8 * 2 * RATE_JPY_PER_30_MINUTES, name: "Half Day", description: "Time to explore your interests, stop for a meal, and enjoy the city." },
+  { hours: 14, durationLabel: "14 hours", priceJpy: 14 * 2 * RATE_JPY_PER_30_MINUTES, name: "Full Day", description: "An unhurried day together, from morning into the evening." },
 ] as const
 
 export function planForDuration(durationMinutes: number) {

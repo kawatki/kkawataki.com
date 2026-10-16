@@ -10,7 +10,7 @@ function snapshot(p) {
   return { pricing_version:p.pricingVersion, tax_rate:String(p.taxRate), package_ids:JSON.stringify(p.packageIds), packages_total_jpy:String(p.packagesTotalJpy), booking_duration_minutes:String(p.durationHours*60), plan_amount_jpy:String(p.planAmountJpy), transport_fee_jpy:String(p.transportFeeJpy), service_total_jpy:String(p.serviceTotalJpy), deposit_amount_jpy:String(p.depositAmountJpy), deposit_percent:String(p.depositPercent) }
 }
 test('fixed plans, group fees, transport, deposits and immutable snapshots agree', () => {
-  for (const [hours, price] of [[4,16000],[8,28000],[14,42000]]) {
+  for (const [hours, price] of [[4,8000],[8,16000],[14,28000]]) {
     for (let peopleCount=1; peopleCount<=6; peopleCount++) for (const faceRecordingConsent of [false,true]) {
       const multiplier = (peopleCount<=3 ? 1 : 2) * (faceRecordingConsent ? 1 : 1.2)
       assert.equal(bookingPriceMultiplier(peopleCount,faceRecordingConsent), multiplier)
@@ -18,7 +18,7 @@ test('fixed plans, group fees, transport, deposits and immutable snapshots agree
       assert.equal(p.planAmountJpy, price*multiplier)
       assert.equal(p.transportFeeJpy,4000)
       assert.equal(p.serviceTotalJpy,Math.round((price*multiplier+4000)*1.1))
-      assert.equal(p.depositAmountJpy,p.serviceTotalJpy)
+      assert.equal(p.depositAmountJpy,p.serviceTotalJpy / 2)
       assert.equal(p.depositAmountJpy+p.balanceDueJpy,p.serviceTotalJpy)
       assert.equal(bookingPricingFromMetadata(snapshot(p),p.depositAmountJpy,'jpy').serviceTotalJpy,p.serviceTotalJpy)
     }
@@ -73,7 +73,7 @@ test('checkout charges the package deposit and its snapshot feeds the public rec
     }}})},
   }
   const run=loader(external)
-  for(const [hours,baseTotal] of [[4,25520],[8,41360],[14,59840]]) {
+  for(const [hours,baseTotal] of [[4,14960],[8,25520],[14,41360]]) {
     const packageIds = []
     const extras = 0
     const total = baseTotal
@@ -82,13 +82,13 @@ test('checkout charges the package deposit and its snapshot feeds the public rec
       body:JSON.stringify({packageIds,date,startTime:'09:00',endTime:`${9+hours}:00`,peopleCount:1,faceRecordingConsent:false,name:'Guest',email:'guest@example.com',title:'Explore Tokyo',location:'Shibuya',socialPlatform:'instagram',socialHandle:'guest',depositTermsAccepted:true,transportationTermsAccepted:true}),
     }))
     assert.equal(response.status,200,JSON.stringify(await response.json()))
-    assert.equal(checkout.line_items[0].price_data.unit_amount,total)
+    assert.equal(checkout.line_items[0].price_data.unit_amount,total / 2)
     assert.equal(checkout.metadata.rate_jpy_per_30_minutes,undefined)
     assert.ok(checkout.custom_text.submit.message.length<=1200)
     const receipt=await run('@/lib/booking-receipt').getPublicBookingReceipt(reference)
     assert.equal(receipt.serviceTotalJpy,total)
     assert.equal(receipt.transportFeeJpy,4000)
-    assert.equal(receipt.balanceDueJpy,0)
+    assert.equal(receipt.balanceDueJpy,total / 2)
     assert.equal(receipt.packagesTotalJpy,extras)
     assert.deepEqual(receipt.packageIds,packageIds)
   }

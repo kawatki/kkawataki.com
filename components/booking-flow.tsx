@@ -1001,8 +1001,8 @@ export function BookingFlow({
             <div className="flex justify-between"><dt>Experience · {groupSize} guests</dt><dd>{yen(selectedPricing.planAmountJpy)}</dd></div>
             {packageIds.map(id => { const item = EXPERIENCE_PACKAGES.find(item => item.id === id)!; return <div key={id} className="flex justify-between"><dt>{item.name}</dt><dd>{yen(item.priceJpy)}</dd></div> })}
             <div className="flex justify-between"><dt>Transportation</dt><dd>{yen(selectedPricing.transportFeeJpy)}</dd></div><div className="flex justify-between"><dt>Tax ({selectedPricing.taxRate * 100}%)</dt><dd>{yen(selectedPricing.taxAmountJpy)}</dd></div>
-            <div className="flex justify-between border-t border-ink/20 pt-3 font-semibold"><dt>Total</dt><dd><span className="font-bold text-vermilion">{yen(selectedPricing.depositAmountJpy)}</span></dd></div>
-            {/* <div className="flex justify-between"><dt>{selectedPricing.depositPercent === 100 ? "Full payment now" : `${selectedPricing.depositPercent}% deposit now`}</dt><dd><span className="font-bold text-vermilion">{yen(selectedPricing.depositAmountJpy)}</span></dd></div> */}
+            <div className="flex justify-between border-t border-ink/20 pt-3 font-semibold"><dt>Total</dt><dd><span className="font-bold text-vermilion">{yen(selectedPricing.serviceTotalJpy)}</span></dd></div>
+            <div className="flex justify-between"><dt>{selectedPricing.depositPercent === 100 ? "Full payment now" : `${selectedPricing.depositPercent}% deposit now`}</dt><dd><span className="font-bold text-vermilion">{yen(selectedPricing.depositAmountJpy)}</span></dd></div>
             {selectedPricing.depositPercent < 100 && selectedPricing.balanceDueJpy > 0 ? <div className="flex justify-between"><dt>Remaining balance</dt><dd>{yen(selectedPricing.balanceDueJpy)}</dd></div> : null}
           </dl>
           {customIdeaEnabled && customIdeas.map((idea, index) => <div key={index} className="mt-4 rounded-xl border border-ink/20 p-4"><p className="font-semibold">Custom idea {index + 1}: {idea.title}</p><div className="mt-2 whitespace-pre-wrap text-sm text-ink/70 [&_a]:underline [&_ul]:list-disc [&_ol]:list-decimal [&_li]:ml-5" dangerouslySetInnerHTML={{ __html: cleanDescription(idea.descriptionHtml ?? idea.description, true) }} /><p className="mt-2 text-xs text-ink/60">Requested idea—not a confirmed reservation. Preparation fees and purchases are agreed separately; confirmed arrangements may limit changes.</p></div>)}
@@ -1244,7 +1244,7 @@ export function BookingFlow({
           ) : (
             <>
               {selectedPricing
-                ? `Pay ${yen(selectedPricing.depositAmountJpy)} in full`
+                ? `Pay ${yen(selectedPricing.depositAmountJpy)} deposit`
                 : "Choose your experience and start time"}
               <ArrowRight className="size-4" />
             </>

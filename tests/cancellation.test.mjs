@@ -201,5 +201,5 @@ test('new cancellation metadata round-trips and old paid bookings retain origina
  assert.equal(base.cancellationRefund(2000,new Date(now+20*86400000).toISOString(),old,now).percent,25)
  assert.equal(base.cancellationRefund(2000,new Date(now+3*86400000).toISOString(),old,now).percent,0)
  assert.throws(()=>base.cancellationPolicyFromMetadata({cancellation_policy_version:'2026-09-25-v2',cancellation_30_days_percent:'50',cancellation_7_days_percent:'25',cancellation_late_percent:'0'}))
- assert.equal(base.DEPOSIT_PERCENT,100)
+ assert.equal(base.DEPOSIT_PERCENT,50)
 })
