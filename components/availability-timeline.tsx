@@ -1,6 +1,7 @@
 "use client"
 
-import { useRef, type PointerEvent } from "react"
+import { useEffect, useRef, type PointerEvent } from "react"
+import { showError, dismissError } from "@/components/ui/toast"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 function minutes(time: string) {
@@ -18,15 +19,26 @@ const colors = {
   Selected: "#286557",
 }
 
-export function AvailabilityTimeline({ availableTimes, start, end, selectedStart, selectedEnd, startOptions = [], onSelectStart }: {
+export function AvailabilityTimeline({ availableTimes, start, end, selectedStart, selectedEnd, startOptions = [], onSelectStart, blockedReason }: {
   availableTimes: string[]
   start: string
   end: string
   selectedStart: string
   selectedEnd: string
+  blockedReason?: string
   startOptions?: string[]
   onSelectStart?: (time: string) => void
 }) {
+  const notification = useRef<string | null>(null)
+  useEffect(() => {
+    return () => {
+      if (notification.current) dismissError(notification.current)
+      notification.current = null
+    }
+  }, [blockedReason])
+  function reportBlockedSelection() {
+    if (blockedReason) notification.current = showError(blockedReason)
+  }
   const gridRef = useRef<HTMLDivElement>(null)
   const drag = useRef<number | null>(null)
   const interactive = !!onSelectStart && startOptions.length > 0
@@ -68,6 +80,9 @@ export function AvailabilityTimeline({ availableTimes, start, end, selectedStart
       <h4 className="text-sm font-semibold">Your day at a glance</h4>
       <p className="mt-2 text-xs leading-5 text-ink/55">{interactive ? "Click or tap a time, or press and drag along the bars to move your booking. Selection snaps to an available start; your plan’s duration stays fixed." : "Choose a duration above to select a start time here."} Each block shows 30 minutes in Japan time.</p>
       <div ref={gridRef} className={`mt-5 space-y-5 ${interactive ? "touch-none select-none" : ""}`}
+        onClick={event => {
+          if (blockedReason && (event.target as HTMLElement).closest("[data-time-row]")) reportBlockedSelection()
+        }}
         onPointerDown={event => {
           if (!interactive || event.button !== 0 || !event.isPrimary) return
           if (!(event.target as HTMLElement).closest("[data-time-row]")) return
@@ -92,8 +107,13 @@ export function AvailabilityTimeline({ availableTimes, start, end, selectedStart
             <div data-time-row data-from={row[0].from} data-to={row[row.length - 1].to} className="grid gap-1" style={{ gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))` }}>
               {row.map((cell) => (
                 <Tooltip key={cell.from}>
-                  <TooltipTrigger render={<span tabIndex={interactive ? 0 : -1} role={interactive ? "button" : undefined} aria-label={interactive ? `${cell.label}. Select nearest available start.` : cell.label}
+                  <TooltipTrigger render={<span tabIndex={interactive || blockedReason ? 0 : -1} role={interactive || blockedReason ? "button" : undefined} aria-label={interactive ? `${cell.label}. Select nearest available start.` : cell.label}
                     onKeyDown={event => {
+                      if (blockedReason && ["Enter", " "].includes(event.key)) {
+                        event.preventDefault()
+                        reportBlockedSelection()
+                        return
+                      }
                       if (!interactive || !["Enter", " ", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
                       event.preventDefault()
                       const index = Math.max(0, startOptions.indexOf(selectedStart))

@@ -876,7 +876,7 @@ export function BookingFlow({
         <h2 className="mt-3 font-display text-3xl">When shall we begin?</h2>
         <p className="mt-3 rounded-xl border border-jade/30 bg-jade/10 p-4 text-sm">Booking within 7 days? Please contact Taki first for approval and a private payment link. After payment, short-notice bookings have a 1-hour correction window for a 90% deposit refund, only before the start and before arrangements begin. After that, no refund. <a href="https://www.instagram.com/kkawataki/" target="_blank" rel="noopener noreferrer" className="underline">Contact Taki</a></p>
         <p className="mt-3 text-sm text-ink/60">Your {selectedHours ?? "chosen"}-hour plan sets the end time automatically. You can finish earlier, at the same fixed price.</p>
-        {activeDay && <AvailabilityTimeline availableTimes={activeDay.availableTimes} start={dayHours.start} end={dayHours.end} selectedStart={selectedStart} selectedEnd={selectedEnd} startOptions={loading ? [] : activeStartOptions} onSelectStart={selectStartTime} />}
+        {activeDay && <AvailabilityTimeline availableTimes={activeDay.availableTimes} start={dayHours.start} end={dayHours.end} selectedStart={selectedStart} selectedEnd={selectedEnd} startOptions={loading ? [] : activeStartOptions} blockedReason={!selectedHours ? "Choose a 4, 8, or 14-hour plan above before selecting a start time." : undefined} onSelectStart={selectStartTime} />}
                 {activeDay && !loading && selectedHours && (
                   <details className="mt-6">
                     <summary className="cursor-pointer text-lg font-semibold">Or choose an exact start time</summary>
