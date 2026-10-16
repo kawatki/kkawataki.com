@@ -580,6 +580,16 @@ export function BookingFlow({
     }
   }
 
+  function selectStartTime(time: string) {
+    if (!selectedHours || !activeStartOptions.includes(time)) return
+    const end = minutesToTime(timeToMinutes(time) + selectedHours * 60)
+                            const removed = EXPERIENCE_PACKAGES.filter(item => packageIds.includes(item.id) && packageUnavailableReason(item, selectedHours, time, end))
+                            setPackageIds(ids => ids.filter(id => !removed.some(item => item.id === id)))
+                            setPackageNotice(removed.length ? `Removed ${removed.map(item => item.name).join(", ")} because your new schedule does not fit. Review your packages.` : "")
+                            setPackagesReviewed(false)
+                            setSelectedStart(time); setSelectedEnd(end)
+  }
+
   const [approvalClock] = useState(() => Date.now())
   const needsShortNoticeApproval = !!selectedDate && !!selectedStart && new Date(`${selectedDate}T${selectedStart}:00+09:00`).getTime() - approvalClock < 7 * 86400000 && !approval
   const scheduleComplete = !!activeDay && !loading && !!selectedHours && validGroupSize && !!selectedStart && !!selectedEnd && activeStartOptions.includes(selectedStart) && !needsShortNoticeApproval
@@ -866,28 +876,22 @@ export function BookingFlow({
         <h2 className="mt-3 font-display text-3xl">When shall we begin?</h2>
         <p className="mt-3 rounded-xl border border-jade/30 bg-jade/10 p-4 text-sm">Booking within 7 days? Please contact Taki first for approval and a private payment link. After payment, short-notice bookings have a 1-hour correction window for a 90% deposit refund, only before the start and before arrangements begin. After that, no refund. <a href="https://www.instagram.com/kkawataki/" target="_blank" rel="noopener noreferrer" className="underline">Contact Taki</a></p>
         <p className="mt-3 text-sm text-ink/60">Your {selectedHours ?? "chosen"}-hour plan sets the end time automatically. You can finish earlier, at the same fixed price.</p>
-        {activeDay && <AvailabilityTimeline availableTimes={activeDay.availableTimes} start={dayHours.start} end={dayHours.end} selectedStart={selectedStart} selectedEnd={selectedEnd} />}
+        {activeDay && <AvailabilityTimeline availableTimes={activeDay.availableTimes} start={dayHours.start} end={dayHours.end} selectedStart={selectedStart} selectedEnd={selectedEnd} startOptions={loading ? [] : activeStartOptions} onSelectStart={selectStartTime} />}
                 {activeDay && !loading && selectedHours && (
-                  <div className="mt-6">
-                    <h4 className="mt-5 font-semibold">Choose your start time</h4>
+                  <details className="mt-6">
+                    <summary className="cursor-pointer text-lg font-semibold">Or choose an exact start time</summary>
                     <p className="mt-1 text-sm text-ink/55">Your reserved time ends at the time shown. You can finish earlier if you wish.</p>
                     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3" role="group" aria-label="Available start times">
                       {activeStartOptions.map((time) => {
                         const end = minutesToTime(timeToMinutes(time) + selectedHours * 60)
                         return <Button variant="outline" key={time} type="button" aria-pressed={selectedStart === time}
-                          onClick={() => {
-                            const removed = EXPERIENCE_PACKAGES.filter(item => packageIds.includes(item.id) && packageUnavailableReason(item, selectedHours, time, end))
-                            setPackageIds(ids => ids.filter(id => !removed.some(item => item.id === id)))
-                            setPackageNotice(removed.length ? `Removed ${removed.map(item => item.name).join(", ")} because your new schedule does not fit. Review your packages.` : "")
-                            setPackagesReviewed(false)
-                            setSelectedStart(time); setSelectedEnd(end)
-                          }}
+                          onClick={() => selectStartTime(time)}
                           className={cn("block h-auto rounded-xl border px-3 py-3 text-sm transition focus-visible:ring-2 focus-visible:ring-jade", selectedStart === time ? "border-jade bg-jade text-paper" : "border-ink/15 hover:border-jade")}
                         >{displayTime(time)}<span className="mt-1 block text-xs opacity-65">until {displayTime(end)}</span></Button>
                       })}
                     </div>
                     <p className="mt-3 text-xs text-ink/50">All times are JST. A {transportBufferMinutes / 60}-hour travel buffer is reserved after your experience.</p>
-                  </div>
+                  </details>
                 )}
 
       </section>
