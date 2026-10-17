@@ -13,6 +13,7 @@ import {
 import { requiredEnv } from "@/lib/server-config"
 
 type GoogleEvent = {
+  location?: string
   attendees?: Array<{ email?: string }>
   description?: string
   end?: { date?: string; dateTime?: string }
@@ -346,6 +347,17 @@ async function getEvent(eventId: string) {
     404,
     410,
   ])
+}
+
+export async function getLookupBooking(eventId: string, sessionId: string) {
+  const event = await getEvent(eventId)
+  if (!event || bookingProperties(event).stripeSessionId !== sessionId) return null
+  return {
+    state: event.status === "cancelled" ? "cancelled" : bookingProperties(event).bookingState,
+    slotStart: event.start?.dateTime,
+    slotEnd: event.end?.dateTime,
+    location: event.location ?? bookingProperties(event).location ?? "",
+  }
 }
 
 export async function findConfirmedBookingByReference(
