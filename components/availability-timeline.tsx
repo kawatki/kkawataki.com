@@ -19,12 +19,13 @@ const colors = {
   Selected: "#286557",
 }
 
-export function AvailabilityTimeline({ availableTimes, start, end, selectedStart, selectedEnd, startOptions = [], onSelectStart, blockedReason }: {
+export function AvailabilityTimeline({ availableTimes, start, end, selectedStart, selectedEnd, startOptions = [], onSelectStart, blockedReason, onBlockedSelection }: {
   availableTimes: string[]
   start: string
   end: string
   selectedStart: string
   selectedEnd: string
+  onBlockedSelection?: () => void
   blockedReason?: string
   startOptions?: string[]
   onSelectStart?: (time: string) => void
@@ -37,7 +38,10 @@ export function AvailabilityTimeline({ availableTimes, start, end, selectedStart
     }
   }, [blockedReason])
   function reportBlockedSelection() {
-    if (blockedReason) notification.current = showError(blockedReason)
+    if (blockedReason) {
+      notification.current = showError(blockedReason)
+      onBlockedSelection?.()
+    }
   }
   const gridRef = useRef<HTMLDivElement>(null)
   const drag = useRef<number | null>(null)

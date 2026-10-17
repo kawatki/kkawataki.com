@@ -627,15 +627,23 @@ export function BookingFlow({
       stepTopRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" })
     })
   }
+  function focusBookingControl(selector: string) {
+    const target = stepTopRef.current?.querySelector<HTMLElement>(selector)
+    if (!target) return
+    const control = target.matches('input, button, [tabindex]') ? target : target.querySelector<HTMLElement>('input, button:not(:disabled), [role="checkbox"], [contenteditable="true"], [tabindex="0"]')
+    control?.focus({ preventScroll: true })
+    target.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" })
+  }
   function continueStep() {
     if (!canContinue) {
       const message = stepWarning || "Please complete this step."
       stepError.current = { id: showError(message), message, step: currentStep }
       setValidationAttempted(true)
       window.requestAnimationFrame(() => {
-        const field = stepTopRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')
-        field?.focus({ preventScroll: true })
-        field?.scrollIntoView({ behavior: "smooth", block: "center" })
+        const selector = currentStep === 0
+          ? !activeDay ? '[data-booking-date]' : !validGroupSize ? '[data-booking-guests]' : !selectedHours ? '[aria-label="Experience options"]' : '[data-booking-schedule]'
+          : currentStep === 1 ? (stepTopRef.current?.querySelector('[aria-invalid="true"]') ? '[aria-invalid="true"]' : '[data-booking-ideas]') : '[data-booking-costs]'
+        focusBookingControl(selector)
       })
       return
     }
@@ -662,7 +670,7 @@ export function BookingFlow({
           }}>OK</Button>
         </div>
       )}
-      <section
+      <section data-booking-date
         hidden={currentStep !== 0}
         className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8"
       >
@@ -828,7 +836,7 @@ export function BookingFlow({
         )}
 
       </section>
-      <section hidden={currentStep !== 0} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
+      <section data-booking-schedule hidden={currentStep !== 0} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
         <p className="eyebrow">Choose your duration</p>
         <h2 className="mt-3 font-display text-3xl">How much of the day is yours?</h2>
         <p className="mt-3 text-sm text-ink/60">You pick:&nbsp;
@@ -838,7 +846,7 @@ export function BookingFlow({
         
         </p>
         <label className="mt-5 grid max-w-xs gap-2 text-sm font-semibold">How many guests?
-          <Input type="number" min={1} max={6} step={1} value={peopleCount} onChange={event => setPeopleCount(event.target.value)} />
+          <Input data-booking-guests type="number" min={1} max={6} step={1} value={peopleCount} onChange={event => setPeopleCount(event.target.value)} />
         </label>
         <p className="mt-2 text-xs text-ink/55">1–3 guests: standard experience fee. 4–6 guests: double the experience fee. Add-on prices are per booking.</p>
         <div className="mt-3">
@@ -871,12 +879,12 @@ export function BookingFlow({
                 <p className="mt-3 text-sm leading-6 text-ink/60">The price is fixed for your chosen plan. Your plan reserves the full 4, 8, or 14 hours; you’re welcome to finish earlier if your schedule changes. Unused time does not reduce the price or qualify for a partial refund.</p>
 
       </section>
-      <section hidden={currentStep !== 0} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
+      <section data-booking-schedule hidden={currentStep !== 0} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
         <p className="eyebrow">Choose your start time</p>
         <h2 className="mt-3 font-display text-3xl">When shall we begin?</h2>
         <p className="mt-3 rounded-xl border border-jade/30 bg-jade/10 p-4 text-sm">Booking within 7 days? Please contact Taki first for approval and a private payment link. After payment, short-notice bookings have a 1-hour correction window for a 90% deposit refund, only before the start and before arrangements begin. After that, no refund. <a href="https://www.instagram.com/kkawataki/" target="_blank" rel="noopener noreferrer" className="underline">Contact Taki</a></p>
         <p className="mt-3 text-sm text-ink/60">Your {selectedHours ?? "chosen"}-hour plan sets the end time automatically. You can finish earlier, at the same fixed price.</p>
-        {activeDay && <AvailabilityTimeline availableTimes={activeDay.availableTimes} start={dayHours.start} end={dayHours.end} selectedStart={selectedStart} selectedEnd={selectedEnd} startOptions={loading ? [] : activeStartOptions} blockedReason={!selectedHours ? "Choose a 4, 8, or 14-hour plan above before selecting a start time." : undefined} onSelectStart={selectStartTime} />}
+        {activeDay && <AvailabilityTimeline availableTimes={activeDay.availableTimes} start={dayHours.start} end={dayHours.end} selectedStart={selectedStart} selectedEnd={selectedEnd} startOptions={loading ? [] : activeStartOptions} blockedReason={!selectedHours ? "Choose a 4, 8, or 14-hour plan above before selecting a start time." : undefined} onSelectStart={selectStartTime} onBlockedSelection={() => focusBookingControl('[aria-label="Experience options"]')} />}
                 {activeDay && !loading && selectedHours && (
                   <details className="mt-6">
                     <summary className="cursor-pointer text-lg font-semibold">Or choose an exact start time</summary>
@@ -895,7 +903,7 @@ export function BookingFlow({
                 )}
 
       </section>
-      <section hidden={currentStep !== 1} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
+      <section data-booking-ideas hidden={currentStep !== 1} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
         <StepLabel step={2}>Your ideas</StepLabel>
         <h2 className="mt-3 font-display text-3xl">What would you like to do?</h2>
         <p className="mt-3 text-sm leading-6 text-ink/60">Use this space to brainstorm what you’d enjoy. Add up to {ideaLimit} {ideaLimit === 1 ? "idea" : "ideas"} for your {selectedHours}-hour experience, or skip this step. Ideas help us plan; they are not confirmed reservations. We can adjust plans together until a reservation, ticket, or special arrangement is confirmed.</p>
@@ -971,13 +979,13 @@ export function BookingFlow({
         <h2 className="mt-3 font-display text-3xl">Costs to keep in mind.</h2>
         <Card className="mt-6"><h3 className="font-semibold">Food &amp; drinks</h3><p className="mt-3 text-sm leading-6 text-ink/60">Paid separately. Food and drinks are not included in your booking total unless explicitly included in a selected package. Have a restaurant or meal in mind? Let Taki know in advance, or let him choose somewhere based on your tastes, dietary needs, and budget.</p></Card>
         <Card className="mt-4"><div className="flex justify-between font-semibold"><span>Transportation fee</span><span>{yen(TRANSPORT_FEE_JPY)}</span></div><p className="mt-3 text-sm leading-6 text-ink/60">A fixed fee of ¥4,000, included in your total. Longer trips, such as travel outside Tokyo, cost extra. Taki will confirm any additional fee with you in advance.</p></Card>
-        <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-4 text-sm leading-6"><ChoiceCheckbox checked={transportationTermsAccepted} onCheckedChange={checked => setTransportationTermsAccepted(checked === true)} /><span>I understand that food and drink costs are paid separately unless included in my selected package, and that the {yen(TRANSPORT_FEE_JPY)} transportation fee is included in my booking total. Any exceptional long-distance travel costs require a separately agreed quote before booking. I understand that ideas are requests, not confirmed arrangements; extra preparation and purchases require a separate agreement, and confirmed arrangements may have change or cancellation costs.</span></label>
+        <label data-booking-costs className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-4 text-sm leading-6"><ChoiceCheckbox checked={transportationTermsAccepted} onCheckedChange={checked => setTransportationTermsAccepted(checked === true)} /><span>I understand that food and drink costs are paid separately unless included in my selected package, and that the {yen(TRANSPORT_FEE_JPY)} transportation fee is included in my booking total. Any exceptional long-distance travel costs require a separately agreed quote before booking. I understand that ideas are requests, not confirmed arrangements; extra preparation and purchases require a separate agreement, and confirmed arrangements may have change or cancellation costs.</span></label>
       </section>
       <section hidden={currentStep !== 2} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
         <p className="eyebrow">Video participation</p>
         <h2 className="mt-3 font-display text-3xl">Wanna be part of my contents?</h2>
         <p className="mt-3 text-sm leading-6 text-ink/60">Participation is optional. You can continue without agreeing. Each guest can choose whether to appear.</p>
-        <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-5 text-sm leading-6"><ChoiceCheckbox checked={faceRecordingConsent} onCheckedChange={checked => { setFaceRecordingConsent(checked === true); setVideoReviewed(false) }} /><span>I agree to appear in your videos and social media content, which may include my face.<span className="mt-2 block text-ink/60">Selected by default. Uncheck if you do not want to appear. Unchecking adds 20% to the experience fee; transportation and packages are unchanged.</span></span></label>
+        <label data-booking-costs className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-5 text-sm leading-6"><ChoiceCheckbox checked={faceRecordingConsent} onCheckedChange={checked => { setFaceRecordingConsent(checked === true); setVideoReviewed(false) }} /><span>I agree to appear in your videos and social media content, which may include my face.<span className="mt-2 block text-ink/60">Selected by default. Uncheck if you do not want to appear. Unchecking adds 20% to the experience fee; transportation and packages are unchanged.</span></span></label>
         <div role="status" aria-live="polite" aria-atomic="true" className={cn("mt-5 rounded-xl border p-4 text-sm leading-6", faceRecordingConsent ? "border-jade/30 bg-jade/10" : "border-vermilion/40 bg-vermilion/10")}>
           {faceRecordingConsent ? (
             <p><strong>Video participation selected.</strong> Your total includes no non-participation surcharge.</p>
@@ -1366,7 +1374,7 @@ export function BookingFlow({
                   </ErrorToast>
                 )}
 
-                <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-4 text-sm leading-6 transition hover:bg-card">
+                <label data-booking-costs className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-4 text-sm leading-6 transition hover:bg-card">
                   <Checkbox.Root
                     checked={depositTermsAccepted}
                     onCheckedChange={setDepositTermsAccepted}
