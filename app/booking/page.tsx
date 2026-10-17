@@ -26,7 +26,7 @@ export default async function BookingPage({
 
   return (
     <>
-      <section className="pb-32 lg:pb-36 page-shell py-10 sm:py-16">
+      <section className="pb-48 lg:pb-36 page-shell py-10 sm:py-16">
         <h1 className="sr-only">Book your Tokyo experience</h1>
         <BookingFlow
           approval={approval}

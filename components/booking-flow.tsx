@@ -303,6 +303,7 @@ export function BookingFlow({
   const [packageIds, setPackageIds] = useState<string[]>([])
   const [packagesReviewed, setPackagesReviewed] = useState(false)
   const [transportationTermsAccepted, setTransportationTermsAccepted] = useState(false)
+  const [videoChoiceMade, setVideoChoiceMade] = useState(false)
   const [videoReviewed, setVideoReviewed] = useState(false)
   const stepTopRef = useRef<HTMLDivElement>(null)
   const [days, setDays] = useState<AvailabilityDay[]>([])
@@ -600,12 +601,12 @@ export function BookingFlow({
     bookingReviewed,
     false,
   ]
-  const canContinue = currentStep === 0 ? scheduleComplete : currentStep === 1 ? customIdeaValid : currentStep === 2 ? transportationTermsAccepted : true
+  const canContinue = currentStep === 0 ? scheduleComplete : currentStep === 1 ? customIdeaValid : currentStep === 2 ? transportationTermsAccepted && videoChoiceMade : true
   const stepWarning = canContinue ? "" : currentStep === 0
     ? !activeDay ? "Choose an available date to continue." : !selectedHours || !validGroupSize ? "Choose a duration and enter a group size from 1 to 6." : needsShortNoticeApproval ? "Bookings within 7 days require Taki’s approval. Contact Taki for a private approval link." : "Choose an available start time to continue."
     : currentStep === 1
       ? customIdeas.length > ideaLimit ? `Your plan allows ${ideaLimit} ideas. Remove an idea or choose a longer duration.` : editingIdea !== null ? "Save or cancel your edit before continuing." : customIdeaDraftValid ? "Press Add to save your idea before continuing." : "Complete your idea and press Add, or choose Skip for now."
-      : "Please acknowledge the additional costs before continuing."
+      : !transportationTermsAccepted ? "Please acknowledge the additional costs before continuing." : "Choose whether you would like to appear in videos before continuing."
   const stepError = useRef<{ id: string; message: string; step: number } | null>(null)
   useEffect(() => {
     const error = stepError.current
@@ -642,7 +643,7 @@ export function BookingFlow({
       window.requestAnimationFrame(() => {
         const selector = currentStep === 0
           ? !activeDay ? '[data-booking-date]' : !validGroupSize ? '[data-booking-guests]' : !selectedHours ? '[aria-label="Experience options"]' : '[data-booking-schedule]'
-          : currentStep === 1 ? (stepTopRef.current?.querySelector('[aria-invalid="true"]') ? '[aria-invalid="true"]' : '[data-booking-ideas]') : '[data-booking-costs]'
+          : currentStep === 1 ? (stepTopRef.current?.querySelector('[aria-invalid="true"]') ? '[aria-invalid="true"]' : '[data-booking-ideas]') : !transportationTermsAccepted ? '[data-booking-costs]' : '[data-booking-video]'
         focusBookingControl(selector)
       })
       return
@@ -660,6 +661,15 @@ export function BookingFlow({
 
   return (
     <div ref={stepTopRef} tabIndex={-1} className="mx-auto grid max-w-4xl scroll-mt-24 gap-6 outline-none">
+      {currentStep === 0 && <section className="rounded-2xl border border-ink/10 bg-card p-5 text-sm leading-6 sm:p-6">
+        <h2 className="font-display text-2xl">Your time in Tokyo, with Taki.</h2>
+        <p className="mt-2 text-ink/70">Book time together to explore, eat, or follow your interests. You don’t need an itinerary ready.</p>
+        <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div><dt className="font-semibold">Included in the total</dt><dd className="text-ink/65">Your chosen hours with Taki, the fixed transportation fee, and tax.</dd></div>
+          <div><dt className="font-semibold">Paid separately</dt><dd className="text-ink/65">Food, drinks, tickets, and activities. Any special arrangements or extra planning fees are agreed before you commit.</dd></div>
+        </dl>
+        <p className="mt-4 font-medium">Reserve with a 50% deposit online. Pay the remaining balance in person.</p>
+      </section>}
       <BookingStepper current={currentStep} completed={completed} onSelect={goToStep} />
       {packageNotice && (
         <div className="flex items-center gap-4 rounded-xl border border-vermilion/30 bg-vermilion/10 p-4 text-sm">
@@ -906,7 +916,7 @@ export function BookingFlow({
       <section data-booking-ideas hidden={currentStep !== 1} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
         <StepLabel step={2}>Your ideas</StepLabel>
         <h2 className="mt-3 font-display text-3xl">What would you like to do?</h2>
-        <p className="mt-3 text-sm leading-6 text-ink/60">Use this space to brainstorm what you’d enjoy. Add up to {ideaLimit} {ideaLimit === 1 ? "idea" : "ideas"} for your {selectedHours}-hour experience, or skip this step. Ideas help us plan; they are not confirmed reservations. We can adjust plans together until a reservation, ticket, or special arrangement is confirmed.</p>
+        <p className="mt-3 text-sm leading-6 text-ink/60">Optional: share an idea now, or discuss it with Taki after booking. No itinerary needed. Add up to {ideaLimit} {ideaLimit === 1 ? "idea" : "ideas"} for your {selectedHours}-hour experience, or skip this step. Ideas help us plan; they are not confirmed reservations. We can adjust plans together until a reservation, ticket, or special arrangement is confirmed.</p>
         <div className="mt-6 grid gap-3">
           {EXPERIENCE_PACKAGES.map(item => {
             const reason = packageUnavailableReason(item, selectedHours ?? 0, selectedStart, selectedEnd)
@@ -983,18 +993,17 @@ export function BookingFlow({
       </section>
       <section hidden={currentStep !== 2} className="rounded-3xl border border-ink/10 bg-card p-5 sm:p-8">
         <p className="eyebrow">Video participation</p>
-        <h2 className="mt-3 font-display text-3xl">Wanna be part of my contents?</h2>
+        <h2 className="mt-3 font-display text-3xl">Would you like to appear in videos?</h2>
         <p className="mt-3 text-sm leading-6 text-ink/60">Participation is optional. You can continue without agreeing. Each guest can choose whether to appear.</p>
-        <label data-booking-costs className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-ink/15 p-5 text-sm leading-6"><ChoiceCheckbox checked={faceRecordingConsent} onCheckedChange={checked => { setFaceRecordingConsent(checked === true); setVideoReviewed(false) }} /><span>I agree to appear in your videos and social media content, which may include my face.<span className="mt-2 block text-ink/60">Selected by default. Uncheck if you do not want to appear. Unchecking adds 20% to the experience fee; transportation and packages are unchanged.</span></span></label>
-        <div role="status" aria-live="polite" aria-atomic="true" className={cn("mt-5 rounded-xl border p-4 text-sm leading-6", faceRecordingConsent ? "border-jade/30 bg-jade/10" : "border-vermilion/40 bg-vermilion/10")}>
-          {faceRecordingConsent ? (
-            <p><strong>Video participation selected.</strong> Your total includes no non-participation surcharge.</p>
-          ) : (
-            <p><strong>Video participation declined. {selectedHours && validGroupSize ? `Your total increases by ${yen(experiencePrice(selectedHours * 60, { peopleCount: groupSize, faceRecordingConsent: false, packageIds }).serviceTotalJpy - experiencePrice(selectedHours * 60, { peopleCount: groupSize, faceRecordingConsent: true, packageIds }).serviceTotalJpy)}.` : "A 20% experience fee surcharge applies."}</strong> You will not be asked to appear in videos.</p>
-          )}
-          {selectedPricing && <p className="mt-2 font-semibold">Your total: {yen(selectedPricing.serviceTotalJpy)}</p>}
-        </div>
-        <Card className="mt-5"><div className="flex justify-between"><span>Without participation</span><strong>{selectedHours && validGroupSize ? yen(experiencePrice(selectedHours * 60, { peopleCount: groupSize, faceRecordingConsent: false, packageIds }).serviceTotalJpy) : "¥0"}</strong></div><div className="mt-3 flex justify-between"><span>With participation</span><strong>{selectedHours && validGroupSize ? yen(experiencePrice(selectedHours * 60, { peopleCount: groupSize, faceRecordingConsent: true, packageIds }).serviceTotalJpy) : "¥0"}</strong></div><p className="mt-3 text-xs text-ink/55">Totals include packages, transportation, and tax.</p></Card>
+        <fieldset data-booking-video className="mt-5 grid gap-3">
+          <legend className="sr-only">Video participation choice</legend>
+          {[true, false].map(consent => <label key={String(consent)} className={cn("flex cursor-pointer items-start gap-3 rounded-xl border p-4 text-sm leading-6", videoChoiceMade && faceRecordingConsent === consent ? "border-jade bg-jade/10" : "border-ink/20")}>
+            <input type="radio" name="videoChoice" className="mt-1 size-4 accent-jade" checked={videoChoiceMade && faceRecordingConsent === consent} onChange={() => { setFaceRecordingConsent(consent); setVideoChoiceMade(true); setVideoReviewed(false) }} />
+            <span className="min-w-0 flex-1"><span className="block font-semibold">{consent ? "Happy to appear" : "Prefer privacy"}</span><span className="mt-1 block text-ink/65">{consent ? "I agree to appear in Taki’s videos and social media content, including my face. Base experience rate applies." : "I do not agree to appear. The experience fee is 20% higher; transportation is unchanged."}</span>
+            {selectedHours && validGroupSize && <span className="mt-2 block font-semibold">{yen(experiencePrice(selectedHours * 60, { peopleCount: groupSize, faceRecordingConsent: consent, packageIds }).serviceTotalJpy)} total · including tax &amp; transportation</span>}</span>
+          </label>)}
+        </fieldset>
+        <p className="mt-3 text-xs text-ink/60">Choose either option to continue. Your payment summary updates immediately.</p>
       </section>
 
       <section hidden={currentStep !== 4} className="rounded-3xl border border-ink/10 bg-card p-6 text-ink sm:p-8">
@@ -1016,6 +1025,14 @@ export function BookingFlow({
           {customIdeaEnabled && customIdeas.map((idea, index) => <div key={index} className="mt-4 rounded-xl border border-ink/20 p-4"><p className="font-semibold">Custom idea {index + 1}: {idea.title}</p><div className="mt-2 whitespace-pre-wrap text-sm text-ink/70 [&_a]:underline [&_ul]:list-disc [&_ol]:list-decimal [&_li]:ml-5" dangerouslySetInnerHTML={{ __html: cleanDescription(idea.descriptionHtml ?? idea.description, true) }} /><p className="mt-2 text-xs text-ink/60">Requested idea—not a confirmed reservation. Preparation fees and purchases are agreed separately; confirmed arrangements may limit changes.</p></div>)}
           <p className="mt-4 text-ink/65">Video participation: {faceRecordingConsent ? "agreed" : "not agreed"}. Additional costs and custom-idea conditions acknowledged.</p>
         </div>}
+        <aside className="mt-5 rounded-2xl border border-ink/20 p-5 text-sm leading-6">
+          <h3 className="font-semibold">After your deposit is paid</h3>
+          <ol className="mt-2 list-decimal space-y-2 pl-5 text-ink/70">
+            <li>Your time is confirmed after payment succeeds.</li>
+            <li>Use your receipt and booking reference to keep track of your booking or cancel online.</li>
+            <li>We’ll use your contact details to discuss your meeting point and ideas. Pay the remaining balance in person.</li>
+          </ol>
+        </aside>
         <aside className="mt-5 rounded-2xl border border-ink/20 p-5 text-sm">
           <p className="font-semibold">Plans change. You can cancel online.</p>
           <p className="mt-2 leading-6 text-ink/70">Cancel online and see your refund before confirming. Within 7 days of payment: 90% back when your experience is at least 7 days away. After that window: 75% back with 30+ days’ notice, or 50% with 7–30 days’ notice. Short-notice exceptions apply.</p>
@@ -1437,13 +1454,14 @@ export function BookingFlow({
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-xs text-ink/65">{selectedPricing ? `${selectedPricing.durationHours} hours · ${groupSize} ${groupSize === 1 ? "person" : "people"}` : "Your booking"}</p>
-              <p className="mt-1 text-base font-semibold">{yen(selectedPricing?.serviceTotalJpy ?? 0)} total</p>
+              <p className="mt-1 text-base font-semibold">{selectedPricing ? `${yen(selectedPricing.serviceTotalJpy)} total` : "Choose a plan to see your total"}</p>
             </div>
             <div className="shrink-0 text-right">
-              <p className="text-xs text-ink/65">{selectedPricing?.depositPercent ?? DEPOSIT_PERCENT}% payment</p>
-              <p className="mt-1 text-lg font-semibold text-vermilion">{yen(selectedPricing?.depositAmountJpy ?? 0)}</p>
+              <p className="text-xs text-ink/65">Pay {selectedPricing?.depositPercent ?? DEPOSIT_PERCENT}% today</p>
+              <p className="mt-1 text-lg font-semibold text-vermilion">{selectedPricing ? yen(selectedPricing.depositAmountJpy) : "—"}</p>
             </div>
           </div>
+          {selectedPricing && <p className="mt-2 text-xs text-ink/65">{yen(selectedPricing.balanceDueJpy)} remaining, paid in person.{!videoChoiceMade && " Estimate with video participation; choose in Preferences & costs."}</p>}
         </aside>
       )}
     </div>
