@@ -3,7 +3,7 @@ import { bookingWasCancelled } from "@/lib/cancellation-store"
 import {
   bookingTransportBufferMinutes,
 } from "@/lib/booking"
-import { getBookingState } from "@/lib/google-calendar"
+import { getLookupBooking } from "@/lib/google-calendar"
 import {
   checkRateLimit,
   rateLimitedResponse,
@@ -47,15 +47,18 @@ export async function GET(request: Request) {
       return Response.json({ status: "invalid" }, { status: 400 })
     }
 
-    const calendarState = await getBookingState(eventId, session.id)
+    const calendar = await getLookupBooking(eventId, session.id)
+    const calendarState = calendar?.state
+    if (calendarState === "cancelled") return Response.json({ status: "cancelled" })
     if (calendarState === "expired" || calendarState === "conflict") {
       return Response.json({ status: "refunded" })
     }
     const metadata = session.metadata ?? {}
     const receipt =
       metadata.booking_reference &&
-      metadata.slot_start &&
-      metadata.slot_end
+      calendarState === "confirmed" &&
+      calendar?.slotStart &&
+      calendar?.slotEnd
         ? {
             cancellationPolicy: cancellationPolicyFromMetadata(metadata),
             bookingReference: metadata.booking_reference,
@@ -64,8 +67,8 @@ export async function GET(request: Request) {
             ...pricing,
             requestTitle: metadata.booking_title ?? "",
             serviceTotalJpy: pricing.serviceTotalJpy,
-            slotEnd: metadata.slot_end,
-            slotStart: metadata.slot_start,
+            slotEnd: calendar.slotEnd,
+            slotStart: calendar.slotStart,
             transportBufferMinutes: bookingTransportBufferMinutes(),
           }
         : undefined

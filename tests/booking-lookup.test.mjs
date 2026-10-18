@@ -2,17 +2,18 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { loader } from './module-loader.mjs'
 
-function harness({ email='guest@example.com', card={}, cancelled=false, state='confirmed', refunded=false, pages=1 }={}) {
+function harness({ email='guest@example.com', card={}, cancelled=false, state='confirmed', refunded=false, pages=1, recent=false, recentPages=1, recentError=false, missingCalendar=false }={}) {
  const calls=[]
+ const charge = {id:'ch_test',paid:true,currency:'jpy',payment_method_details:{card:{last4:'1234',exp_month:9,exp_year:2025,...card}},payment_intent:'pi_test',amount:10000,amount_refunded:refunded?10000:0,refunded}
  const load=loader({
-  '@/lib/stripe':{getStripe:()=>({charges:{search:async params=>{calls.push(['search',params]);return {data:[{paid:true,currency:'jpy',payment_method_details:{card:{last4:'1234',exp_month:9,exp_year:2025,...card}},payment_intent:'pi_test',amount:10000,amount_refunded:refunded?10000:0,refunded}],has_more:calls.filter(c=>c[0]==='search').length<pages,next_page:'next'}}},checkout:{sessions:{list:async()=>{calls.push(['session']);return {data:[{id:'cs_test',payment_status:'paid',currency:'jpy',amount_total:10000,customer_email:email,metadata:{booking_event_id:'event',booking_reference:'RJG-2345-ABCD',slot_start:'2026-10-17T10:00:00+09:00',slot_end:'2026-10-17T12:00:00+09:00'}}]}}}}})},
-  '@/lib/google-calendar':{getLookupBooking:async()=>{calls.push(['calendar']);return {state,slotStart:'2026-10-18T10:00:00+09:00',slotEnd:'2026-10-18T12:00:00+09:00',location:'Tokyo Station'}}},
+  '@/lib/stripe':{getStripe:()=>({charges:{list:async params=>{calls.push(['list',params]);if(recentError) throw new Error('Stripe unavailable');return {data:recent?[charge]:[],has_more:calls.filter(c=>c[0]==='list').length<recentPages}},search:async params=>{calls.push(['search',params]);return {data:recent?[]:[charge],has_more:calls.filter(c=>c[0]==='search').length<pages,next_page:'next'}}},checkout:{sessions:{list:async()=>{calls.push(['session']);return {data:[{id:'cs_test',payment_status:'paid',currency:'jpy',amount_total:10000,customer_email:email,metadata:{booking_event_id:'event',booking_reference:'RJG-2345-ABCD',slot_start:'2026-10-17T10:00:00+09:00',slot_end:'2026-10-17T12:00:00+09:00'}}]}}}}})},
+  '@/lib/google-calendar':{getLookupBooking:async()=>{calls.push(['calendar']);return missingCalendar ? null : {state,slotStart:'2026-10-18T10:00:00+09:00',slotEnd:'2026-10-18T12:00:00+09:00',location:'Tokyo Station'}}},
   '@/lib/cancellation-store':{bookingWasCancelled:async()=>cancelled},
   '@/lib/booking-policy':{bookingPricingFromMetadata:()=>({serviceTotalJpy:20000}),cancellationPolicyFromMetadata:()=>({})},
   '@/lib/booking':{bookingTransportBufferMinutes:()=>60},
  })
- const module=load('@/lib/booking-lookup')
- return {...module,calls,run:()=>module.lookupBookings(module.parseLookupInput({email:' Guest@Example.com ',last4:'1234',expiry:'09/25'}))}
+ const loadedModule=load('@/lib/booking-lookup')
+ return {...loadedModule,calls,run:()=>loadedModule.lookupBookings(loadedModule.parseLookupInput({email:' Guest@Example.com ',last4:'1234',expiry:'09/25'}))}
 }
 test('validates input strictly and allows historical expired cards',()=>{
  const h=harness()
@@ -48,5 +49,50 @@ test('route rejects cross-origin, rate-limited, and unverified requests before l
   assert.equal(response.status,{origin:403,rate:429,token:400,success:200}[scenario])
   assert.equal(calls.includes('lookup'),scenario==='success')
   if(scenario==='success') assert.match(response.headers.get('cache-control'),/no-store/)
+ }
+})
+
+test('recent payments are found before Stripe Search indexes them', async()=>{
+ const h=harness({recent:true,recentPages:2});const results=await h.run()
+ assert.equal(results.length,1)
+ assert.equal(results[0].status,'confirmed')
+ const lists=h.calls.filter(c=>c[0]==='list')
+ assert.equal(lists.length,2)
+ assert.equal(lists[1][1].starting_after,'ch_test')
+ const cutoff=lists[0][1].created.gte
+ assert.match(h.calls.find(c=>c[0]==='search')[1].query,new RegExp(`created<${cutoff}$`))
+})
+test('recent-payment retrieval preserves all identity checks',async()=>{
+ for(const options of [{email:'other@example.com'},{card:{last4:'5678'}},{card:{exp_month:10}},{card:{exp_year:2026}}]) {
+  const h=harness({...options,recent:true});assert.deepEqual(await h.run(),[]);assert.ok(!h.calls.some(c=>c[0]==='calendar'))
+ }
+})
+test('recent provider failures and pagination limits cannot become false not-found responses',async()=>{
+ await assert.rejects(harness({recent:true,recentError:true}).run(),/unavailable/)
+ await assert.rejects(harness({recent:true,recentPages:11}).run(),/limit reached/)
+})
+
+test('missing Calendar data never falls back to Stripe’s original schedule',async()=>{
+ const result=await harness({recent:true,missingCalendar:true}).run()
+ assert.equal(result.length,1)
+ assert.equal(result[0].slotStart,null)
+ assert.equal(result[0].slotEnd,null)
+ assert.equal(result[0].receipt,undefined)
+})
+
+test('confirmation receipt uses the rescheduled Calendar time and never Stripe dates',async()=>{
+ for(const calendar of [{state:'confirmed',slotStart:'2026-12-01T11:00:00+09:00',slotEnd:'2026-12-01T19:00:00+09:00'},null]) {
+  const load=loader({
+   '@/lib/stripe':{getStripe:()=>({checkout:{sessions:{retrieve:async()=>({id:'cs_test',payment_status:'paid',currency:'jpy',amount_total:10000,metadata:{booking_event_id:'event',booking_reference:'RJG-2345-ABCD',slot_start:'2026-10-01T09:00:00+09:00',slot_end:'2026-10-01T17:00:00+09:00'}})}}})},
+   '@/lib/google-calendar':{getLookupBooking:async()=>calendar},
+   '@/lib/cancellation-store':{bookingWasCancelled:async()=>false},
+   '@/lib/booking-policy':{bookingPricingFromMetadata:()=>({serviceTotalJpy:10000}),cancellationPolicyFromMetadata:()=>({})},
+   '@/lib/booking':{bookingTransportBufferMinutes:()=>60},
+   '@/lib/rate-limit':{checkRateLimit:async()=>({allowed:true})},
+  })
+  const response=await load('@/app/api/booking-status/route').GET(new Request('https://example.com/api/booking-status?session_id=cs_test'))
+  const result=await response.json()
+  if(calendar) {assert.equal(result.receipt.slotStart,calendar.slotStart);assert.equal(result.receipt.slotEnd,calendar.slotEnd)}
+  else assert.equal(result.receipt,undefined)
  }
 })

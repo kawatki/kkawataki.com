@@ -1,6 +1,7 @@
 import { CustomRequestCard } from "@/components/custom-request-card"
-import { EXPERIENCE_PLANS, TRANSPORT_FEE_JPY, experiencePrice } from "@/lib/experience-plans"
+import { EXPERIENCE_PLANS, experiencePrice } from "@/lib/experience-plans"
 import Link from "next/link"
+import { DEPOSIT_PERCENT } from "@/lib/booking-policy"
 import {
   ArrowRight,
   CalendarCheck,
@@ -46,11 +47,14 @@ const steps = [
   {
     number: "03",
     title: "Secure the booking",
-    copy: "Pay a 50% deposit through Stripe, with the remaining balance paid in person. Your time is confirmed only after payment succeeds.",
+    copy: `Pay a ${DEPOSIT_PERCENT}% deposit through Stripe, with the remaining balance paid in person. Your time is confirmed only after payment succeeds.`,
   },
 ]
 
+const participationOptions = { peopleCount: 1, faceRecordingConsent: true }
+
 export default function HomePage() {
+  const startingPrice = experiencePrice(EXPERIENCE_PLANS[0].hours * 60, participationOptions)
   return (
     <>
       <section className="relative overflow-hidden border-b border-ink/10">
@@ -100,7 +104,7 @@ export default function HomePage() {
               </div>
               <p className="mt-8 font-display text-5xl leading-none">Short / Half / Full</p>
               <p className="mt-3 text-sm leading-6 text-paper/65">
-                Three ways to spend time in Tokyo. From ¥26,000 with social media participation, including transportation.
+                Three ways to spend time in Tokyo. From ¥{startingPrice.serviceTotalJpy.toLocaleString("en-US")} with social media participation, including tax and transportation.
               </p>
 
               <div className="mt-10 grid grid-cols-7 gap-2" aria-hidden="true">
@@ -158,15 +162,15 @@ export default function HomePage() {
               <h3 className="mt-5 font-display text-3xl">{plan.name}</h3>
               <p className="mt-3 text-sm leading-6 opacity-70">{plan.description}</p>
               <p className="mt-8 text-4xl font-semibold">¥{experiencePrice(plan.hours * 60).serviceTotalJpy.toLocaleString("en-US")}</p>
-              <p className="mt-2 text-sm opacity-70">{plan.durationLabel} · transportation included</p>
-              <p className="mt-2 text-xs opacity-60">¥{Math.round(plan.priceJpy * 1.2).toLocaleString("en-US")} experience + ¥4,000 transportation</p>
-              <p className="mt-2 text-sm font-semibold">With social media participation: ¥{(plan.priceJpy + TRANSPORT_FEE_JPY).toLocaleString("en-US")} total</p>
+              <p className="mt-2 text-sm opacity-70">{plan.durationLabel} · tax & transportation included</p>
+              <p className="mt-2 text-xs opacity-60">¥{experiencePrice(plan.hours * 60).planAmountJpy.toLocaleString("en-US")} experience + ¥{experiencePrice(plan.hours * 60).transportFeeJpy.toLocaleString("en-US")} transportation · before tax</p>
+              <p className="mt-2 text-sm font-semibold">With social media participation: ¥{experiencePrice(plan.hours * 60, participationOptions).serviceTotalJpy.toLocaleString("en-US")} total</p>
               <Link href="/booking" className="mt-7 flex items-center justify-between border-t border-current/20 pt-5 text-sm font-semibold">Check available dates <ArrowRight className="size-4" /></Link>
             </article>
           ))}
           <CustomRequestCard />
         </div>
-        <p className="mt-5 text-sm leading-6 text-ink/55">Displayed prices include the 20% non-participation surcharge. Agree to social media participation at booking to remove it. Prices cover 1–3 guests. For 4–6 guests, the experience fee doubles; transportation remains ¥4,000 per booking. Food, drinks, and activity costs are extra. A 50% deposit reserves your experience; pay the remaining balance in person.</p>
+        <p className="mt-5 text-sm leading-6 text-ink/55">All totals include tax and transportation. Standard prices include the 20% non-participation surcharge. Agree to social media participation at booking to remove it. Prices cover 1–3 guests. For 4–6 guests, the experience fee doubles; transportation remains ¥4,000 per booking. Food, drinks, and activity costs are extra. A {DEPOSIT_PERCENT}% deposit reserves your experience; pay the remaining balance in person.</p>
       </section>
 
       <section className="bg-jade text-paper">

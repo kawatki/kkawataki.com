@@ -79,12 +79,12 @@ export function BookingLookup({ turnstileSiteKey, mapsKey }: { turnstileSiteKey:
       {error && <p ref={errorRef} tabIndex={-1} role="alert" className="scroll-mt-28 text-sm text-vermilion">{error}</p>}
     </form>
     <div ref={resultsRef} tabIndex={-1} aria-label="Booking lookup results" aria-live="polite" aria-busy={busy} className="scroll-mt-28">
-      {bookings?.length === 0 && <div className="mt-8 rounded-2xl bg-cream p-6"><h2 className="font-display text-2xl">No matching bookings found</h2><p className="mt-3 text-sm leading-6">Check all three details and try again. New payments can take a few minutes to appear. Apple Pay or Google Pay may use different card digits; check your wallet’s payment details.</p></div>}
+      {bookings?.length === 0 && <div className="mt-8 rounded-2xl bg-cream p-6"><h2 className="font-display text-2xl">No matching bookings found</h2><p className="mt-3 text-sm leading-6">Check all three details and try again. Use the email and card details from your payment. Apple Pay or Google Pay may use different card digits; check your wallet’s payment details.</p></div>}
       {!!bookings?.length && <div className="mt-8 flex items-center justify-between gap-4"><h2 className="font-display text-2xl">Your bookings ({bookings.length})</h2><button type="button" onClick={() => setBookings(null)} className="text-sm underline">Clear results</button></div>}
       {bookings?.map(booking => <article key={booking.reference} className="mt-6 rounded-3xl border border-ink/15 bg-card p-5 sm:p-7">
         <p className="eyebrow">{booking.status}</p>
         <h3 className="mt-3 font-display text-2xl">{booking.title || "Your experience"}</h3>
-        <p className="mt-3 text-sm">{date(booking.slotStart)} JST</p>
+        <p className="mt-3 text-sm">{booking.slotStart && booking.slotEnd ? `${date(booking.slotStart)}–${new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Tokyo" }).format(new Date(booking.slotEnd))} JST` : "The current schedule is unavailable. Please contact Taki to confirm your time."}</p>
         {booking.status === "processing" && <p className="mt-3 text-sm leading-6">Payment received. Your calendar confirmation is still being checked. Please contact me if this does not update.</p>}
         {booking.receipt ? <BookingReceipt receipt={booking.receipt} /> : <dl className="mt-5 space-y-2 text-sm"><div><dt>Reference</dt><dd className="font-mono">{booking.reference}</dd></div><div><dt>Original payment</dt><dd>{yen(booking.paidJpy)}</dd></div></dl>}
         {booking.refundedJpy > 0 && <p className="mt-4 text-sm">Refunded through Stripe: {yen(booking.refundedJpy)}. Your bank may take several days to show it.</p>}
